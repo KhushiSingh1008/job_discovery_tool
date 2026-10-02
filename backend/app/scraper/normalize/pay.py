@@ -96,3 +96,39 @@ def to_hourly(raw: str | None) -> float | None:
     if not _MIN_PLAUSIBLE_HOURLY <= hourly <= _MAX_PLAUSIBLE_HOURLY:
         return None
     return round(hourly, 2)
+
+
+# Words near an amount that suggest it is the salary, or a perk that merely costs money.
+_SALARY_CONTEXT = re.compile(
+    r"salary|base pay|per annum|per year|a year|per hour|an hour|hourly|compensation|"
+    r"\bpay\b|wage|rate|range|package",
+    re.I,
+)
+_PERK_AFTER = re.compile(
+    r"^\s*(?:\w+\s+)?(?:budget|allowance|learning|pension|equity|voucher|discount|"
+    r"referral|relocation|towards|contribution)",
+    re.I,
+)
+_SNIPPET_TAIL = re.compile(r"[^\n.;]{0,30}")
+
+
+def find_pay_in_text(text: str | None) -> str | None:
+    """Pick the salary mention out of a free-text job description.
+
+    Descriptions mention many amounts ("£1,000 learning budget"); a range, or an amount
+    near salary words, is the likely pay. Returns the snippet, which ``to_hourly`` can parse.
+    """
+    if not text:
+        return None
+    best: tuple[int, str] | None = None
+    for match in _POUND_AMOUNT.finditer(text):
+        before = text[max(0, match.start() - 60) : match.start()]
+        tail = _SNIPPET_TAIL.match(text, match.end())
+        after = tail.group(0) if tail else ""
+        score = 0
+        score += 2 if match["high"] else 0
+        score += 2 if _SALARY_CONTEXT.search(before + after) else 0
+        score -= 3 if _PERK_AFTER.search(after) else 0
+        if score > 0 and (best is None or score > best[0]):
+            best = (score, (match.group(0) + after).strip())
+    return best[1] if best else None

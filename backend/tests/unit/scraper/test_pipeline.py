@@ -42,7 +42,7 @@ class FakeAdapter(SourceAdapter):
     def discover(self, fetcher: Fetcher) -> Iterator[Page]:
         yield from self.pages
 
-    def parse(self, url: str, html: str) -> list[RawListing]:
+    def parse(self, page: Page, html: str) -> list[RawListing]:
         if html == "boom":
             raise ValueError("layout changed")
         return self.content[html]

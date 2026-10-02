@@ -36,3 +36,11 @@ def test_falls_back_to_adapter_default() -> None:
         normalize_job_type(None, "Barista", "Make great coffee.", default=JobType.PART_TIME)
         == JobType.PART_TIME
     )
+
+
+def test_employment_type_claiming_every_category_is_ignored() -> None:
+    spammy = "Graduate Jobs, Casual / Part Time Jobs, Temporary Full Time, Placements"
+    assert normalize_job_type(spammy, "Earn money with surveys", default=JobType.PART_TIME) == (
+        JobType.PART_TIME
+    )
+    assert normalize_job_type(spammy, "Summer Intern") == JobType.INTERNSHIP  # title decides

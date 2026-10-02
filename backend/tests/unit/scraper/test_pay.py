@@ -1,6 +1,6 @@
 import pytest
 
-from app.scraper.normalize.pay import to_hourly
+from app.scraper.normalize.pay import find_pay_in_text, to_hourly
 
 
 @pytest.mark.parametrize(
@@ -44,3 +44,24 @@ def test_parses_pay_to_hourly_lower_bound(raw: str, expected: float) -> None:
 )
 def test_vague_or_implausible_pay_is_none(raw: str | None) -> None:
     assert to_hourly(raw) is None
+
+
+def test_find_pay_in_text_prefers_salary_over_perks() -> None:
+    text = (
+        "Benefits include a £1,000 learning budget each year.\n"
+        "The salary range for this role is £84,200 - £99,000 + incentive awards."
+    )
+    assert find_pay_in_text(text) == "£84,200 - £99,000 + incentive awards"
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("We pay £12.50 per hour plus tips", "£12.50 per hour plus tips"),
+        ("£500 towards your gym membership", None),
+        ("No pay information here", None),
+        (None, None),
+    ],
+)
+def test_find_pay_in_text(text: str | None, expected: str | None) -> None:
+    assert find_pay_in_text(text) == expected

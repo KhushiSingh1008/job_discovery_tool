@@ -33,10 +33,12 @@ def classify(text: str | None) -> JobType | None:
     """Classify a single piece of text, or ``None`` if it carries no job-type signal."""
     if not text:
         return None
-    for job_type, pattern in _RULES:
-        if pattern.search(text):
-            return job_type
-    return None
+    matches = [job_type for job_type, pattern in _RULES if pattern.search(text)]
+    # Posts that tick every box ("Graduate, Part Time, Full Time, Placements...") tell us
+    # nothing; treat them as no signal so the title or the source default decides.
+    if len(matches) == len(JobType):
+        return None
+    return matches[0] if matches else None
 
 
 def normalize_job_type(

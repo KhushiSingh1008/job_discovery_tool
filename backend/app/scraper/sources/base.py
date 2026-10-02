@@ -30,5 +30,5 @@ class SourceAdapter(ABC):
         """Yield the pages that contain listings (detail pages or index pages)."""
 
     @abstractmethod
-    def parse(self, url: str, html: str) -> list[RawListing]:
+    def parse(self, page: Page, html: str) -> list[RawListing]:
         """Extract every listing found on one page. Must not perform network calls."""

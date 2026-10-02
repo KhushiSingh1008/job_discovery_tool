@@ -3,7 +3,7 @@
 import logging
 import re
 from collections import deque
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from urllib.parse import urljoin
 
@@ -18,10 +18,15 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True, slots=True)
 class Page:
-    """A page to parse. ``html`` is set when discovery already downloaded it."""
+    """A page to parse.
+
+    ``html`` is set when discovery already downloaded it. ``context`` carries facts seen on
+    an index page that the detail page lacks (e.g. pay shown only on a search-result card).
+    """
 
     url: str
     html: str | None = None
+    context: Mapping[str, str] = field(default_factory=dict)
 
 
 @dataclass(slots=True)

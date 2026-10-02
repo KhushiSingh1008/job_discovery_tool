@@ -1,8 +1,15 @@
 """Registry of site adapters. Add new adapters to ``ALL_SOURCES``."""
 
 from app.scraper.sources.base import SourceAdapter
+from app.scraper.sources.cambridge import CambridgeAdapter
+from app.scraper.sources.greenhouse import GreenhouseAdapter
+from app.scraper.sources.studentjob import StudentJobAdapter
 
-ALL_SOURCES: tuple[type[SourceAdapter], ...] = ()
+ALL_SOURCES: tuple[type[SourceAdapter], ...] = (
+    CambridgeAdapter,
+    StudentJobAdapter,
+    GreenhouseAdapter,
+)
 
 REGISTRY: dict[str, type[SourceAdapter]] = {source.name: source for source in ALL_SOURCES}
 

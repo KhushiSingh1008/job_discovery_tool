@@ -83,7 +83,7 @@ def run_source(
             stats.pages += 1
             try:
                 html = page.html if page.html is not None else fetcher.get(page.url)
-                raw_listings = adapter.parse(page.url, html)
+                raw_listings = adapter.parse(page, html)
             except Exception as exc:  # noqa: BLE001 - one bad page must not abort the run
                 stats.failed_pages += 1
                 stats.record_error(f"{page.url}: {exc}")
