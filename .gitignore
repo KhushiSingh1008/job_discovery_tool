@@ -16,6 +16,7 @@ backend/data/*.db-*
 .env
 .claude
 claude.md
+CLAUDE.md
 
 # Node
 node_modules/

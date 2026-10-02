@@ -13,6 +13,6 @@ from app.config import Settings
 def test_cors_origins_accept_comma_separated_env(
     monkeypatch: pytest.MonkeyPatch, raw: str, expected: list[str]
 ) -> None:
-    # The format documented in .env.example must load (it used to require JSON).
+    # The format used in backend/.env must load (it used to require JSON).
     monkeypatch.setenv("GG_CORS_ORIGINS", raw)
     assert Settings().cors_origins == expected
