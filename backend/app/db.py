@@ -1,0 +1,82 @@
+"""SQLite connection handling and schema initialisation.
+
+The ``listings`` table is the single source of truth: the listing view, filters,
+trust score and application tracker all read from it.
+"""
+
+import sqlite3
+from collections.abc import Iterator
+from contextlib import contextmanager
+from pathlib import Path
+
+SCHEMA_VERSION = 1
+
+SCHEMA = """
+CREATE TABLE IF NOT EXISTS listings (
+    id              TEXT PRIMARY KEY,          -- sha1(title|employer|location)
+    title           TEXT NOT NULL,
+    employer        TEXT NOT NULL,
+    location        TEXT NOT NULL DEFAULT '',
+    pay_raw         TEXT,                      -- pay exactly as the page shows it
+    pay_hourly      REAL,                      -- normalised GBP/hour, NULL if vague
+    job_type        TEXT NOT NULL CHECK (job_type IN ('part-time', 'full-time', 'internship')),
+    posted_date     TEXT NOT NULL,             -- ISO date; page date, else first_seen
+    description     TEXT NOT NULL DEFAULT '',
+    url             TEXT NOT NULL,
+    source          TEXT NOT NULL,             -- which scraper adapter produced it
+    first_seen      TEXT NOT NULL,             -- ISO datetime (UTC)
+    last_seen       TEXT NOT NULL,             -- ISO datetime (UTC)
+    trust_score     INTEGER,                   -- 0..100
+    trust_flags     TEXT NOT NULL DEFAULT '[]',-- JSON list of reasons
+    eligibility_tag TEXT NOT NULL DEFAULT 'unknown'
+);
+
+CREATE INDEX IF NOT EXISTS idx_listings_job_type    ON listings(job_type);
+CREATE INDEX IF NOT EXISTS idx_listings_posted_date ON listings(posted_date);
+CREATE INDEX IF NOT EXISTS idx_listings_trust_score ON listings(trust_score);
+CREATE INDEX IF NOT EXISTS idx_listings_source      ON listings(source);
+
+CREATE TABLE IF NOT EXISTS applications (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    listing_id      TEXT NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
+    status          TEXT NOT NULL DEFAULT 'saved'
+                    CHECK (status IN ('saved', 'applied', 'interviewing', 'offered', 'rejected')),
+    weekly_hours    REAL NOT NULL DEFAULT 0 CHECK (weekly_hours >= 0),
+    applied_at      TEXT,
+    last_contact_at TEXT,
+    notes           TEXT NOT NULL DEFAULT '',
+    created_at      TEXT NOT NULL,
+    updated_at      TEXT NOT NULL,
+    UNIQUE (listing_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_applications_status ON applications(status);
+"""
+
+
+def connect(db_path: Path | str) -> sqlite3.Connection:
+    """Open a connection with row access by name and foreign keys enforced."""
+    if str(db_path) != ":memory:":
+        Path(db_path).parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(db_path, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    return conn
+
+
+def init_db(conn: sqlite3.Connection) -> None:
+    """Create tables and indexes if they do not exist (idempotent)."""
+    conn.executescript(SCHEMA)
+    conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+    conn.commit()
+
+
+@contextmanager
+def open_db(db_path: Path | str) -> Iterator[sqlite3.Connection]:
+    """Connection that is initialised on open and always closed afterwards."""
+    conn = connect(db_path)
+    try:
+        init_db(conn)
+        yield conn
+    finally:
+        conn.close()
