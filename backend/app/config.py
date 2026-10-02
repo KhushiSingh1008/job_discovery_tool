@@ -36,6 +36,8 @@ class Settings(BaseSettings):
         default=None,
         validation_alias=AliasChoices("ANTHROPIC_API_KEY", "GG_ANTHROPIC_API_KEY"),
     )
+    match_model: str = "claude-opus-5-5"
+    match_timeout: float = 60.0
 
     def resolved_database_path(self) -> Path:
         """Relative paths are resolved against ``backend/`` so the CLI and API agree."""

@@ -3,7 +3,7 @@
 from datetime import date, datetime
 from enum import StrEnum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from app.models import ApplicationStatus, EligibilityTag, JobType
 
@@ -100,3 +100,32 @@ class Reminder(BaseModel):
     status: ApplicationStatus
     days_silent: int
     draft_message: str
+
+
+class MatchEngine(StrEnum):
+    CLAUDE = "claude"
+    KEYWORD = "keyword"
+
+
+class MatchRequest(BaseModel):
+    """Resume text plus either a stored listing or a pasted job description."""
+
+    resume_text: str = Field(min_length=50, max_length=20_000)
+    listing_id: str | None = None
+    job_description: str | None = Field(default=None, min_length=50, max_length=20_000)
+
+    @model_validator(mode="after")
+    def _exactly_one_job(self) -> "MatchRequest":
+        if (self.listing_id is None) == (self.job_description is None):
+            raise ValueError("Provide exactly one of listing_id or job_description")
+        return self
+
+
+class MatchResult(BaseModel):
+    score: int = Field(ge=0, le=100)
+    summary: str
+    matched_skills: list[str]
+    missing_skills: list[str]
+    suggestions: list[str]
+    engine: MatchEngine
+    notice: str | None = None  # e.g. why the offline matcher was used
