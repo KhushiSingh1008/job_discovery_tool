@@ -3,10 +3,11 @@
 import hashlib
 import json
 import sqlite3
+from collections.abc import Iterator
 from datetime import datetime
 from enum import StrEnum
 
-from app.models import Listing, ListingIn
+from app.models import EligibilityTag, Listing, ListingIn, TrustFlag
 from app.scraper.normalize.text import clean_text
 
 
@@ -87,6 +88,29 @@ class ListingRepository:
 
     def count(self) -> int:
         return int(self._conn.execute("SELECT COUNT(*) FROM listings").fetchone()[0])
+
+    def iter_all(self) -> Iterator[Listing]:
+        for row in self._conn.execute("SELECT * FROM listings ORDER BY id"):
+            yield row_to_listing(row)
+
+    def update_enrichment(
+        self,
+        listing_id: str,
+        trust_score: int,
+        trust_flags: list[TrustFlag],
+        eligibility_tag: EligibilityTag,
+    ) -> None:
+        self._conn.execute(
+            """UPDATE listings
+               SET trust_score = ?, trust_flags = ?, eligibility_tag = ?
+               WHERE id = ?""",
+            (
+                trust_score,
+                json.dumps([flag.model_dump() for flag in trust_flags]),
+                eligibility_tag.value,
+                listing_id,
+            ),
+        )
 
 
 def row_to_listing(row: sqlite3.Row) -> Listing:

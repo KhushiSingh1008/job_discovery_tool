@@ -1,0 +1,20 @@
+{
+  "source": "https://www.gov.uk/national-minimum-wage-rates",
+  "note": "Hourly GBP rates. Add a new entry each April; the latest entry in effect on a date is used.",
+  "rates": [
+    {
+      "effective_from": "2025-04-01",
+      "age_21_plus": 12.21,
+      "age_18_20": 10.00,
+      "under_18": 7.55,
+      "apprentice": 7.55
+    },
+    {
+      "effective_from": "2026-04-01",
+      "age_21_plus": 12.71,
+      "age_18_20": 10.85,
+      "under_18": 8.00,
+      "apprentice": 8.00
+    }
+  ]
+}

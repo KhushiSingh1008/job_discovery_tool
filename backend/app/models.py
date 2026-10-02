@@ -28,6 +28,14 @@ class ApplicationStatus(StrEnum):
     REJECTED = "rejected"
 
 
+class TrustFlag(BaseModel):
+    """One reason behind a trust score, e.g. ``pay_below_minimum`` with impact -35."""
+
+    code: str
+    message: str
+    impact: int  # points added to (positive) or removed from (negative) the score
+
+
 class ListingIn(BaseModel):
     """A normalised listing produced by the scraper, ready to be stored."""
 
@@ -60,5 +68,5 @@ class Listing(BaseModel):
     first_seen: datetime
     last_seen: datetime
     trust_score: int | None
-    trust_flags: list[str]
+    trust_flags: list[TrustFlag]
     eligibility_tag: EligibilityTag
