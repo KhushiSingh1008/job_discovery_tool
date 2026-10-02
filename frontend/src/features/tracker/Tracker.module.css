@@ -1,0 +1,337 @@
+/* ---- Visa settings ---- */
+.settings {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.field {
+  display: grid;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.field select,
+.field input {
+  min-height: 2.5rem;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+/* ---- Hours panel ---- */
+.hoursPanel {
+  --tone: var(--color-good);
+  display: grid;
+  gap: var(--space-4);
+  align-items: center;
+  padding: var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background:
+    radial-gradient(circle at 18% 50%, var(--color-surface-sunken), transparent 60%),
+    var(--color-surface);
+  box-shadow: var(--shadow-md);
+}
+
+.near_limit {
+  --tone: var(--color-warn);
+}
+
+.over_limit {
+  --tone: var(--color-bad);
+  border-color: var(--color-bad);
+}
+
+.no_limit {
+  --tone: var(--color-accent);
+}
+
+.gauge {
+  position: relative;
+  width: min(100%, 280px);
+  aspect-ratio: 1;
+  margin: 0 auto;
+}
+
+.ring {
+  position: absolute;
+  inset: 0;
+}
+
+.gaugeLabel {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  text-align: center;
+  pointer-events: none;
+}
+
+.gaugeValue {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xl);
+  font-weight: 500;
+  color: var(--tone);
+}
+
+.gaugeCap {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+}
+
+.verdict {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.eyebrow {
+  color: var(--color-text-faint);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.verdictTitle {
+  color: var(--tone);
+  font-size: var(--text-2xl);
+}
+
+.hoursFacts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-5);
+  margin: 0;
+}
+
+.hoursFacts dt {
+  color: var(--color-text-faint);
+  font-size: var(--text-xs);
+}
+
+.hoursFacts dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-lg);
+}
+
+.note {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+/* ---- Reminders ---- */
+.sectionTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  font-size: var(--text-xl);
+}
+
+.badgeCount {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-warn-soft);
+  color: var(--color-warn);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.reminders ul {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reminder {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-warn);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.reminderHead {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.silent {
+  color: var(--color-warn);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.draft summary {
+  cursor: pointer;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.draft pre {
+  margin: var(--space-3) 0 0;
+  padding: var(--space-4);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-sunken);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  white-space: pre-wrap;
+}
+
+.reminderActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* ---- Board ---- */
+.board {
+  display: grid;
+  grid-auto-columns: minmax(250px, 82%);
+  grid-auto-flow: column;
+  gap: var(--space-3);
+  margin: 0 calc(var(--gutter) * -1);
+  padding: 0 var(--gutter) var(--space-3);
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+}
+
+.column {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: var(--space-3);
+  min-height: 220px;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken);
+  scroll-snap-align: start;
+}
+
+.columnTitle {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.columnCount {
+  color: var(--color-text-faint);
+  font-family: var(--font-mono);
+}
+
+.columnList {
+  display: grid;
+  align-content: start;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.appCard {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.appTitle {
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: 500;
+  line-height: 1.25;
+  text-decoration: none;
+}
+
+.appTitle:hover {
+  text-decoration: underline;
+  text-decoration-color: var(--color-accent);
+}
+
+.appMeta {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+}
+
+.hoursField {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.hoursField input {
+  width: 4.5rem;
+  min-height: 2rem;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  text-align: right;
+}
+
+.appError {
+  color: var(--color-bad);
+  font-size: var(--text-xs);
+}
+
+.appActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+@media (min-width: 720px) {
+  .settings {
+    grid-template-columns: 2fr 1fr;
+  }
+
+  .hoursPanel {
+    grid-template-columns: 260px 1fr;
+    gap: var(--space-6);
+  }
+
+  .board {
+    grid-auto-columns: minmax(240px, 1fr);
+  }
+}
+
+@media (min-width: 1180px) {
+  .board {
+    grid-auto-flow: row;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    margin: 0;
+    padding: 0;
+    overflow: visible;
+  }
+}

@@ -2,9 +2,10 @@
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Annotated
 
-from pydantic import AliasChoices, Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import AliasChoices, Field, field_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 
@@ -30,7 +31,8 @@ class Settings(BaseSettings):
     ghost_job_days: int = 45
     reminder_silence_days: int = 7
 
-    cors_origins: list[str] = ["http://localhost:5173"]
+    # NoDecode: read "a,b" from the environment as written instead of requiring JSON.
+    cors_origins: Annotated[list[str], NoDecode] = ["http://localhost:5173"]
 
     anthropic_api_key: str | None = Field(
         default=None,
@@ -38,6 +40,13 @@ class Settings(BaseSettings):
     )
     match_model: str = "claude-opus-5-5"
     match_timeout: float = 60.0
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def _split_origins(cls, value: object) -> object:
+        if isinstance(value, str):
+            return [origin.strip() for origin in value.split(",") if origin.strip()]
+        return value
 
     def resolved_database_path(self) -> Path:
         """Relative paths are resolved against ``backend/`` so the CLI and API agree."""
