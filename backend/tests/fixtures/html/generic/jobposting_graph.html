@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <!-- A broken block first: the extractor must skip it and keep going. -->
+  <script type="application/ld+json">{ "@type": "JobPosting", "title": "Broken", </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "WebPage", "name": "Graduate Analyst - Acme" },
+      {
+        "@type": ["JobPosting"],
+        "title": "Graduate Analyst",
+        "hiringOrganization": "Acme Ltd",
+        "jobLocationType": "TELECOMMUTE",
+        "employmentType": "FULL_TIME",
+        "datePosted": "2026-09-15T09:00:00Z",
+        "url": "https://acme.example/careers/graduate-analyst",
+        "description": "<p>Our graduate scheme
+spans data and finance.</p>",
+        "baseSalary": {
+          "@type": "MonetaryAmount",
+          "currency": "GBP",
+          "value": { "@type": "QuantitativeValue", "value": 28000, "unitText": "YEAR" }
+        }
+      }
+    ]
+  }
+  </script>
+</head>
+<body><h1>Graduate Analyst</h1></body>
+</html>
