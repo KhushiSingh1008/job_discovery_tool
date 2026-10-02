@@ -37,3 +37,30 @@ class WageRules(BaseModel):
 @lru_cache
 def load_wage_rules(path: Path = RULES_DIR / "uk_wages.json") -> WageRules:
     return WageRules.model_validate(json.loads(path.read_text(encoding="utf-8")))
+
+
+class VisaRule(BaseModel):
+    country: str
+    visa_type: str
+    label: str
+    hours_per_week: float | None  # None = no weekly limit
+    vacation_note: str
+    source_url: str
+
+
+class VisaRules(BaseModel):
+    note: str
+    fallback_hours_per_week: float
+    rules: list[VisaRule]
+
+    def find(self, country: str, visa_type: str) -> VisaRule | None:
+        key = (country.casefold(), visa_type.casefold())
+        return next(
+            (r for r in self.rules if (r.country.casefold(), r.visa_type.casefold()) == key),
+            None,
+        )
+
+
+@lru_cache
+def load_visa_rules(path: Path = RULES_DIR / "visa_rules.json") -> VisaRules:
+    return VisaRules.model_validate(json.loads(path.read_text(encoding="utf-8")))

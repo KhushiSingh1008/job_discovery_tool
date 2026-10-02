@@ -4,10 +4,12 @@ import hashlib
 import json
 import sqlite3
 from collections.abc import Iterator
-from datetime import datetime
+from dataclasses import dataclass, field
+from datetime import date, datetime
 from enum import StrEnum
 
-from app.models import EligibilityTag, Listing, ListingIn, TrustFlag
+from app.models import EligibilityTag, JobType, Listing, ListingIn, TrustFlag
+from app.schemas import FacetCount, FilterFacets, ListingSummary, SortOrder
 from app.scraper.normalize.text import clean_text
 
 
@@ -23,6 +25,77 @@ def make_listing_id(title: str, employer: str, location: str) -> str:
 class UpsertOutcome(StrEnum):
     INSERTED = "inserted"
     UPDATED = "updated"
+
+
+@dataclass(slots=True)
+class ListingSearch:
+    """Search criteria; empty/None fields do not filter."""
+
+    q: str | None = None
+    job_types: list[JobType] = field(default_factory=list)
+    location: str | None = None
+    min_pay: float | None = None
+    min_trust: int | None = None
+    eligibility: list[EligibilityTag] = field(default_factory=list)
+    posted_since: date | None = None
+    source: str | None = None
+    sort: SortOrder = SortOrder.NEWEST
+    page: int = 1
+    page_size: int = 20
+
+
+_SUMMARY_COLUMNS = (
+    "id, title, employer, location, pay_raw, pay_hourly, job_type, posted_date, url, "
+    "source, trust_score, eligibility_tag"
+)
+_ORDER_BY = {
+    SortOrder.NEWEST: "posted_date DESC, trust_score DESC, id",
+    # NULL pay/trust sort last regardless of direction.
+    SortOrder.PAY: "pay_hourly IS NULL, pay_hourly DESC, posted_date DESC, id",
+    SortOrder.TRUST: "trust_score IS NULL, trust_score DESC, posted_date DESC, id",
+}
+
+
+def _like_pattern(term: str) -> str:
+    escaped = term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return f"%{escaped}%"
+
+
+def _where_clause(search: ListingSearch) -> tuple[str, list[object]]:
+    """Build a parameterised WHERE clause; user input never enters the SQL text."""
+    conditions: list[str] = []
+    params: list[object] = []
+
+    # Every word must appear somewhere (title, employer, location or description).
+    for term in (search.q or "").split():
+        conditions.append(
+            "(title LIKE ? ESCAPE '\\' OR employer LIKE ? ESCAPE '\\' "
+            "OR location LIKE ? ESCAPE '\\' OR description LIKE ? ESCAPE '\\')"
+        )
+        params.extend([_like_pattern(term)] * 4)
+    if search.job_types:
+        conditions.append(f"job_type IN ({', '.join('?' * len(search.job_types))})")
+        params.extend(job_type.value for job_type in search.job_types)
+    if search.eligibility:
+        conditions.append(f"eligibility_tag IN ({', '.join('?' * len(search.eligibility))})")
+        params.extend(tag.value for tag in search.eligibility)
+    if search.location:
+        conditions.append("location LIKE ? ESCAPE '\\'")
+        params.append(_like_pattern(search.location.strip()))
+    if search.min_pay is not None:
+        conditions.append("pay_hourly >= ?")
+        params.append(search.min_pay)
+    if search.min_trust is not None:
+        conditions.append("trust_score >= ?")
+        params.append(search.min_trust)
+    if search.posted_since is not None:
+        conditions.append("posted_date >= ?")
+        params.append(search.posted_since.isoformat())
+    if search.source:
+        conditions.append("source = ?")
+        params.append(search.source)
+
+    return (f"WHERE {' AND '.join(conditions)}" if conditions else ""), params
 
 
 _UPSERT_SQL = """
@@ -88,6 +161,40 @@ class ListingRepository:
 
     def count(self) -> int:
         return int(self._conn.execute("SELECT COUNT(*) FROM listings").fetchone()[0])
+
+    def search(self, search: ListingSearch) -> tuple[list[ListingSummary], int]:
+        """One page of matching listings plus the total number of matches."""
+        where, params = _where_clause(search)
+        total = int(
+            self._conn.execute(f"SELECT COUNT(*) FROM listings {where}", params).fetchone()[0]
+        )
+        rows = self._conn.execute(
+            f"SELECT {_SUMMARY_COLUMNS} FROM listings {where} "
+            f"ORDER BY {_ORDER_BY[search.sort]} LIMIT ? OFFSET ?",
+            [*params, search.page_size, (search.page - 1) * search.page_size],
+        ).fetchall()
+        return [ListingSummary.model_validate(dict(row)) for row in rows], total
+
+    def facets(self, top_locations: int = 15) -> FilterFacets:
+        """Values (with counts) the UI can offer as filters."""
+
+        def counts(column: str, limit: int | None = None) -> list[FacetCount]:
+            sql = (
+                f"SELECT {column} AS value, COUNT(*) AS count FROM listings "
+                f"WHERE {column} != '' GROUP BY {column} ORDER BY count DESC, value"
+            )
+            if limit is not None:
+                sql += f" LIMIT {int(limit)}"
+            return [FacetCount(value=r["value"], count=r["count"]) for r in self._conn.execute(sql)]
+
+        max_pay = self._conn.execute("SELECT MAX(pay_hourly) FROM listings").fetchone()[0]
+        return FilterFacets(
+            job_types=counts("job_type"),
+            sources=counts("source"),
+            locations=counts("location", top_locations),
+            eligibility=counts("eligibility_tag"),
+            max_pay_hourly=max_pay,
+        )
 
     def iter_all(self) -> Iterator[Listing]:
         for row in self._conn.execute("SELECT * FROM listings ORDER BY id"):

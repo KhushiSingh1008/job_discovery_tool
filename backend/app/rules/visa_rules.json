@@ -1,0 +1,62 @@
+{
+  "note": "Weekly work-hour caps during term time. Rules change; always confirm on the official page. Students can override the cap in the app.",
+  "fallback_hours_per_week": 20,
+  "rules": [
+    {
+      "country": "UK",
+      "visa_type": "student",
+      "label": "UK Student visa (degree level)",
+      "hours_per_week": 20,
+      "vacation_note": "Full-time work is allowed during your university's official vacations.",
+      "source_url": "https://www.gov.uk/student-visa/work"
+    },
+    {
+      "country": "UK",
+      "visa_type": "student-below-degree",
+      "label": "UK Student visa (below degree level)",
+      "hours_per_week": 10,
+      "vacation_note": "Full-time work is allowed during official vacations.",
+      "source_url": "https://www.gov.uk/student-visa/work"
+    },
+    {
+      "country": "UK",
+      "visa_type": "graduate",
+      "label": "UK Graduate visa",
+      "hours_per_week": null,
+      "vacation_note": "No weekly limit on working hours.",
+      "source_url": "https://www.gov.uk/graduate-visa"
+    },
+    {
+      "country": "AU",
+      "visa_type": "student",
+      "label": "Australia Student visa (subclass 500)",
+      "hours_per_week": 24,
+      "vacation_note": "Capped at 48 hours per fortnight during study periods; unlimited in scheduled breaks.",
+      "source_url": "https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/student-500"
+    },
+    {
+      "country": "CA",
+      "visa_type": "study-permit",
+      "label": "Canada study permit (off-campus work)",
+      "hours_per_week": 24,
+      "vacation_note": "Full-time work is allowed during scheduled breaks.",
+      "source_url": "https://www.canada.ca/en/immigration-refugees-citizenship/services/study-canada/work/work-off-campus.html"
+    },
+    {
+      "country": "US",
+      "visa_type": "f1",
+      "label": "United States F-1 (on-campus work)",
+      "hours_per_week": 20,
+      "vacation_note": "Full-time on-campus work is allowed during official breaks.",
+      "source_url": "https://studyinthestates.dhs.gov/students/work/working-in-the-united-states"
+    },
+    {
+      "country": "IE",
+      "visa_type": "stamp-2",
+      "label": "Ireland Stamp 2",
+      "hours_per_week": 20,
+      "vacation_note": "Up to 40 hours a week during set holiday periods.",
+      "source_url": "https://www.irishimmigration.ie/my-situation-has-changed-since-i-arrived-in-ireland/working-while-studying/"
+    }
+  ]
+}

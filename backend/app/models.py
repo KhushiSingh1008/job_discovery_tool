@@ -70,3 +70,23 @@ class Listing(BaseModel):
     trust_score: int | None
     trust_flags: list[TrustFlag]
     eligibility_tag: EligibilityTag
+
+
+class Application(BaseModel):
+    """A listing the student is tracking, joined with the listing fields the tracker shows."""
+
+    id: int
+    listing_id: str
+    status: ApplicationStatus
+    weekly_hours: float
+    applied_at: datetime | None
+    last_contact_at: datetime | None
+    notes: str
+    created_at: datetime
+    updated_at: datetime
+    title: str
+    employer: str
+    location: str
+    url: str
+    job_type: JobType
+    pay_hourly: float | None

@@ -1,0 +1,102 @@
+"""Request and response bodies of the HTTP API (the domain models live in ``models``)."""
+
+from datetime import date, datetime
+from enum import StrEnum
+
+from pydantic import BaseModel, Field
+
+from app.models import ApplicationStatus, EligibilityTag, JobType
+
+
+class SortOrder(StrEnum):
+    NEWEST = "newest"
+    PAY = "pay"
+    TRUST = "trust"
+
+
+class ListingSummary(BaseModel):
+    """A listing without its (long) description, for result lists."""
+
+    id: str
+    title: str
+    employer: str
+    location: str
+    pay_raw: str | None
+    pay_hourly: float | None
+    job_type: JobType
+    posted_date: date
+    url: str
+    source: str
+    trust_score: int | None
+    eligibility_tag: EligibilityTag
+
+
+class ListingPage(BaseModel):
+    items: list[ListingSummary]
+    total: int
+    page: int
+    page_size: int
+
+
+class FacetCount(BaseModel):
+    value: str
+    count: int
+
+
+class FilterFacets(BaseModel):
+    job_types: list[FacetCount]
+    sources: list[FacetCount]
+    locations: list[FacetCount]
+    eligibility: list[FacetCount]
+    max_pay_hourly: float | None
+
+
+class ApplicationCreate(BaseModel):
+    listing_id: str
+    status: ApplicationStatus = ApplicationStatus.SAVED
+    weekly_hours: float = Field(default=0, ge=0, le=168)
+    notes: str = ""
+
+
+class ApplicationUpdate(BaseModel):
+    """Partial update: only the fields that are sent are changed."""
+
+    status: ApplicationStatus | None = None
+    weekly_hours: float | None = Field(default=None, ge=0, le=168)
+    notes: str | None = None
+    last_contact_at: datetime | None = None
+
+
+class HoursStatus(StrEnum):
+    OK = "ok"
+    NEAR_LIMIT = "near_limit"
+    OVER_LIMIT = "over_limit"
+    NO_LIMIT = "no_limit"
+
+
+class CapSource(StrEnum):
+    VISA_RULE = "visa_rule"
+    USER_OVERRIDE = "user_override"
+    FALLBACK = "fallback"
+
+
+class HoursSummary(BaseModel):
+    cap_hours: float | None
+    cap_source: CapSource
+    rule_label: str
+    vacation_note: str
+    source_url: str | None
+    committed_hours: float  # jobs you hold (offered)
+    potential_hours: float  # committed + interviewing: what you'd work if all came through
+    remaining_hours: float | None
+    status: HoursStatus
+    message: str
+
+
+class Reminder(BaseModel):
+    application_id: int
+    title: str
+    employer: str
+    status: ApplicationStatus
+    days_silent: int
+    draft_message: str

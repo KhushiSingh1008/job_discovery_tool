@@ -5,8 +5,10 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from app.api.deps import get_now
 from app.config import get_settings
 from app.db import connect, init_db
+from tests.factories import NOW
 
 
 @pytest.fixture
@@ -30,7 +32,10 @@ def db_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
 
 @pytest.fixture
 def client(db_path: Path) -> Iterator[TestClient]:
+    """API client on a fresh database with the clock frozen at ``NOW``."""
     from app.api.main import create_app
 
-    with TestClient(create_app()) as test_client:
+    app = create_app()
+    app.dependency_overrides[get_now] = lambda: NOW
+    with TestClient(app) as test_client:
         yield test_client
