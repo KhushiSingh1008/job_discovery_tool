@@ -54,6 +54,14 @@ class Settings(BaseSettings):
     match_model: str = "claude-opus-5-5"
     match_timeout: float = 60.0
 
+    @field_validator("anthropic_api_key", mode="before")
+    @classmethod
+    def _blank_key_is_no_key(cls, value: object) -> object:
+        # "ANTHROPIC_API_KEY=" left empty in .env means offline mode, not an empty key.
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def _split_origins(cls, value: object) -> object:

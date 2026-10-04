@@ -25,3 +25,14 @@ def test_api_key_is_never_printed() -> None:
     assert "sk-ant-test-123" not in str(settings.model_dump())
     assert settings.anthropic_api_key is not None
     assert settings.anthropic_api_key.get_secret_value() == "sk-ant-test-123"
+
+
+@pytest.mark.parametrize("blank", ["", "   "])
+def test_blank_api_key_means_offline(blank: str) -> None:
+    from app.services.enhancement.factory import build_enhancer
+    from app.services.enhancement.rules import RuleBasedEnhancer
+
+    settings = Settings(anthropic_api_key=blank)
+
+    assert settings.anthropic_api_key is None
+    assert isinstance(build_enhancer(settings), RuleBasedEnhancer)

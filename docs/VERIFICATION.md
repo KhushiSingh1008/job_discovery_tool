@@ -2,7 +2,7 @@
 
 Checked on 4 October 2026 against the assignment brief. Evidence comes from three places:
 
-- **Automated tests:** 424 backend (pytest) and 97 frontend (Vitest), all passing; ruff, mypy
+- **Automated tests:** 426 backend (pytest) and 97 frontend (Vitest), all passing; ruff, mypy
   strict, ESLint and the TypeScript check are clean.
 - **Live scrapes** of the real sites (a full run, then an incremental re-run).
 - **An end-to-end script** run against the production Docker image with the scraped data:
@@ -125,4 +125,5 @@ every source. Failed pages: 0.
 | Working app (hosted link or run instructions) | ⬜ Ready to deploy to Render (`render.yaml`, `docs/DEPLOY.md`); not yet deployed |
 | Source code (repo link) | ✅ GitHub (local commits waiting to be pushed) |
 | 1-page write-up (scraper + rationale for 3 features) | ⬜ To do |
-| Video walkthrough in the README | ⬜ README to do; video to record |
+| README | ✅ `README.md`: overview, features, scraper, setup, tests, deployment |
+| Video walkthrough in the README | ⬜ Video to record; placeholder link at the top of the README |
