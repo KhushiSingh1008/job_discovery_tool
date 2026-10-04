@@ -8,6 +8,7 @@ from app.services.resume_files import (
     MAX_UNZIPPED_BYTES,
     MAX_UPLOAD_BYTES,
     ResumeFileError,
+    clean_pdf_text,
     extract_resume_text,
 )
 from tests.documents import encrypt_pdf, make_docx, make_pdf, make_zip_bomb
@@ -92,3 +93,38 @@ def test_zip_that_is_not_a_word_document_is_refused() -> None:
         archive.writestr("payload.exe", b"MZ" + b"0" * 100)
     with pytest.raises(ResumeFileError, match="Upload a PDF"):
         extract_resume_text(out.getvalue())
+
+
+def test_clean_pdf_text_rejoins_wrapped_bullets_and_lists() -> None:
+    raw = (
+        "Khushi Singh\n\n(cid:131) +91 123 | # me@example.com\n\nExperience\n\n"
+        "• Developed deep learning models for automated disease classification from scans using\n\n"
+        "TensorFlow and HuggingFace; evaluated on precision and recall.\n\n"
+        "• Led a team of 4\n"
+        "ISTE-VESIT\n\n"
+        "Tools & Other: Git, MySQL, Docker, MongoDB, Firebase, Jira, Postman, CI/CD (Jenkins),\n"
+        "GitHub Copilot\n"
+        "Projects\n"
+    )
+
+    assert clean_pdf_text(raw).split("\n") == [
+        "Khushi Singh",
+        "+91 123 | me@example.com",
+        "",
+        "Experience",
+        "• Developed deep learning models for automated disease classification from scans "
+        "using TensorFlow and HuggingFace; evaluated on precision and recall.",
+        "• Led a team of 4",  # short line: ended on purpose, not wrapped
+        "ISTE-VESIT",
+        "Tools & Other: Git, MySQL, Docker, MongoDB, Firebase, Jira, Postman, CI/CD (Jenkins), "
+        "GitHub Copilot",
+        "",
+        "Projects",
+    ]
+
+
+def test_wrapped_pdf_bullet_is_one_line_after_upload() -> None:
+    long_bullet = "- Built an end-to-end reagent authentication pipeline from manufacturer scan to"
+    text = extract_resume_text(make_pdf(["Priya Sharma", long_bullet, "on-chain proof."]))
+
+    assert f"{long_bullet} on-chain proof." in text.split("\n")

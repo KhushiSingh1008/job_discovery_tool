@@ -9,6 +9,7 @@ dependencies = [
     "beautifulsoup4>=4.12",
     "fastapi>=0.115",
     "lxml>=5.3",
+    "pdfminer.six>=20250506",
     "pydantic>=2.9",
     "pydantic-settings>=2.6",
     "pypdf>=5.1",

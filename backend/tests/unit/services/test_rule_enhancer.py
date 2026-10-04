@@ -4,7 +4,10 @@ from app.schemas import EnhanceEngine, ResumeSuggestion, SuggestionKind
 from app.services.enhancement.rules import (
     METRIC_PLACEHOLDER,
     RuleBasedEnhancer,
+    _parse,
+    education_details,
     past_tense,
+    short_title,
     strengthen_opening,
 )
 
@@ -96,8 +99,65 @@ def test_profile_is_added_below_the_name() -> None:
 
     assert profile.kind is SuggestionKind.ADD
     assert profile.original == "Priya Sharma"
-    assert "the Weekend Barista role" in profile.replacement
-    assert "[Your course]" in profile.replacement  # facts only the student knows
+    assert profile.replacement.startswith(
+        "Profile: MSc Data Science student at University of Manchester, applying for the "
+        "Weekend Barista role"
+    )
+    assert "already in your resume" in profile.reason
+
+
+def test_profile_uses_placeholders_when_education_is_missing() -> None:
+    education = "- MSc Data Science, University of Manchester, studying machine learning\n"
+    resume = RESUME.replace(education, "")
+    [profile] = _by_section(_enhance(resume), "Profile")
+
+    assert "[Your course] student at [your university]" in profile.replacement
+    assert "Fill in the brackets" in profile.reason
+
+
+@pytest.mark.parametrize(
+    ("lines", "expected"),
+    [
+        (
+            [
+                "Vivekanand Education Society's Institute of Technology",
+                "Bachelor of Engineering - Information Technology CGPA: 9.92 / 10 2023 - 2027",
+            ],
+            (
+                "Bachelor of Engineering - Information Technology",
+                "Vivekanand Education Society's Institute of Technology",
+            ),
+        ),
+        (
+            ["BSc Computer Science at King's College London (2024-2027)"],
+            ("BSc Computer Science", "King's College London (2024-2027)"),
+        ),
+        (["A-levels: Maths, Physics"], ("A-levels: Maths, Physics", None)),
+        (["Volunteering at a food bank"], (None, None)),
+    ],
+    ids=["two-lines", "one-line", "no-institution", "no-degree"],
+)
+def test_education_details(lines: list[str], expected: tuple[str | None, str | None]) -> None:
+    parsed = _parse("\n".join(["EDUCATION", *lines, "", "SKILLS", "Excel"]))
+    assert education_details(parsed) == expected
+
+
+@pytest.mark.parametrize(
+    ("title", "expected"),
+    [
+        (
+            "Assistant Research Professor (Software Engineer) (Fixed Term)",
+            "Assistant Research Professor",
+        ),
+        (
+            "2027 Graduate Programme - Earth & Environment - Ground & Water",
+            "2027 Graduate Programme",
+        ),
+        ("Weekend Barista", "Weekend Barista"),
+    ],
+)
+def test_short_title(title: str, expected: str) -> None:
+    assert short_title(title) == expected
 
 
 def test_existing_profile_is_respected() -> None:

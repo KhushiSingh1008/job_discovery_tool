@@ -11,6 +11,9 @@ from app.services.matching.skills import find_skills, skills_in_order
 
 SKILL_WEIGHT = 0.8
 KEYWORD_WEIGHT = 0.2
+# Below this many named skills, coverage says little ("1 of 1" is not a 100% fit), so the
+# skill share of the score shrinks in proportion and shared keywords count for more.
+FULL_CONFIDENCE_SKILLS = 4
 MAX_MISSING = 8
 
 _WORD = re.compile(r"[a-z][a-z+#.-]{3,}")
@@ -47,7 +50,8 @@ class KeywordMatcher:
         overlap = len(job_words & _keywords(resume_text)) / len(job_words) if job_words else 0.0
         if job_skills:
             coverage = len(matched) / len(job_skills)
-            score = SKILL_WEIGHT * coverage + KEYWORD_WEIGHT * overlap
+            skill_weight = SKILL_WEIGHT * min(1.0, len(job_skills) / FULL_CONFIDENCE_SKILLS)
+            score = skill_weight * coverage + (1 - skill_weight) * overlap
         else:
             score = overlap
 
@@ -64,7 +68,10 @@ class KeywordMatcher:
     def _summary(matched: int, wanted: int) -> str:
         if wanted == 0:
             return "The advert names few specific skills; the score reflects shared keywords."
-        return f"Your resume shows {matched} of the {wanted} skills this job mentions."
+        summary = f"Your resume shows {matched} of the {wanted} skills this job mentions."
+        if wanted < FULL_CONFIDENCE_SKILLS:
+            summary += " The advert gives little detail, so treat the score as a rough guide."
+        return summary
 
     @staticmethod
     def _suggestions(matched: list[str], missing: list[str], job_title: str) -> list[str]:

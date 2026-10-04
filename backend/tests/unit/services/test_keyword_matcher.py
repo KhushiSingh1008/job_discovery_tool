@@ -85,3 +85,23 @@ def test_suggestions_are_actionable_and_deterministic() -> None:
     assert first == second
     assert 1 <= len(first.suggestions) <= 3
     assert any("food hygiene" in s for s in first.suggestions)
+
+
+def test_links_are_not_skill_evidence() -> None:
+    resume = "linkedin.com/in/someone | github.com/someone | me@instagram-fan.com\nBarista"
+    result = KeywordMatcher().match(resume, "Social media assistant", "Social media and git.")
+
+    assert result.matched_skills == []
+
+
+def test_thin_adverts_do_not_produce_confident_scores() -> None:
+    # One named skill matched is not a 100% fit when the advert says almost nothing else.
+    result = KeywordMatcher().match(
+        "Research assistant in a biology lab, Python data pipelines.",
+        "Research Software Engineer",
+        "Department: Cancer Research Institute. Category: Research.",
+    )
+
+    assert result.matched_skills == ["research"]
+    assert result.score < 50
+    assert "rough guide" in result.summary

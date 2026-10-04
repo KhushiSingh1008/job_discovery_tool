@@ -14,6 +14,9 @@ import re
 import zipfile
 
 import docx
+from pdfminer.high_level import extract_text as pdfminer_extract_text
+from pdfminer.layout import LAParams
+from pdfminer.psexceptions import PSException
 from pypdf import PdfReader
 from pypdf.errors import PdfReadError
 
@@ -49,9 +52,52 @@ def _pdf_text(data: bytes) -> str:
     if page_count > MAX_PDF_PAGES:
         raise ResumeFileError(f"Resumes longer than {MAX_PDF_PAGES} pages are not supported.")
     try:
-        return "\n".join(page.extract_text() or "" for page in reader.pages)
-    except _PARSER_ERRORS as exc:
+        # pdfminer places words by character position, so styled runs keep their spaces
+        # ("for 10+ events", where simpler extractors give "for10+events").
+        text = pdfminer_extract_text(io.BytesIO(data), maxpages=MAX_PDF_PAGES, laparams=LAParams())
+    except (PSException, *_PARSER_ERRORS) as exc:
         raise ResumeFileError(_UNREADABLE_PDF) from exc
+    return clean_pdf_text(text)
+
+
+# PDF layout artefacts: icon glyphs with no text equivalent, blank lines between every line,
+# and lines that only end because the page was too narrow.
+_CID_GLYPH = re.compile(r"\(cid:\d+\)\s?")
+_BULLET_START = re.compile(r"^\s*(?:[-*•\u2013·▪●◦]|\d+[.)])\s+")
+# Icon-font glyphs left on their own (contact-line phone, mail, LinkedIn icons).
+_ICON_GLYPH = re.compile(r"(?:^|(?<=\s))[#\u00a7\u00b6\ue000-\uf8ff](?=\s)\s?")
+_SENTENCE_END = re.compile(r"[.!?)\]”\"]$")
+_HEADING = re.compile(r"^[A-Z][A-Za-z&]*(?: [A-Za-z&]+){0,2}$")
+WRAPPED_LINE_MIN_CHARS = 70  # shorter lines ended on purpose; longer ones probably wrapped
+
+
+def _wraps_onto_next(line: str) -> bool:
+    if len(line) < WRAPPED_LINE_MIN_CHARS:
+        return False
+    return line.endswith(",") or (
+        bool(_BULLET_START.match(line)) and not _SENTENCE_END.search(line)
+    )
+
+
+def _is_continuation(previous: str, line: str) -> bool:
+    if _BULLET_START.match(line):
+        return False
+    # After a trailing comma even a heading-like line ("GitHub Copilot") is the same list.
+    return previous.endswith(",") or not _HEADING.match(line)
+
+
+def clean_pdf_text(text: str) -> str:
+    """Rejoin wrapped bullets, drop layout blank lines and keep a gap before each heading."""
+    lines = [_ICON_GLYPH.sub("", _CID_GLYPH.sub("", line)).strip() for line in text.splitlines()]
+    joined: list[str] = []
+    for line in filter(None, lines):
+        if joined and _wraps_onto_next(joined[-1]) and _is_continuation(joined[-1], line):
+            joined[-1] = f"{joined[-1]} {line}"
+        elif joined and _HEADING.match(line):
+            joined.extend(["", line])
+        else:
+            joined.append(line)
+    return "\n".join(joined)
 
 
 def _docx_text(data: bytes) -> str:

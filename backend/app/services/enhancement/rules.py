@@ -136,6 +136,42 @@ def strengthen_opening(text: str) -> tuple[str, str] | None:
     return None
 
 
+_DEGREE = re.compile(
+    r"\b(bachelor|master|b\.?sc|m\.?sc|b\.?eng|m\.?eng|b\.?tech|m\.?tech|b\.?a|m\.?a|mba|"
+    r"ph\.?d|diploma|a[- ]levels?|foundation)\b",
+    re.I,
+)
+_INSTITUTION = re.compile(r"universit|institute|college|school|academy", re.I)
+# Grades, dates and separators that often share a line with the degree.
+_DEGREE_TAIL = re.compile(r"\s*(?:\b(?:CGPA|GPA|Grade|Expected)\b|\d{4}|\||\().*$", re.I)
+
+
+def education_details(lines: list[_Line]) -> tuple[str | None, str | None]:
+    """The degree and institution named in the Education section, if they can be found."""
+    education = [line.text for line in lines if "education" in line.section.lower()]
+    degree = next((text for text in education if _DEGREE.search(text)), None)
+    institution = next(
+        (text for text in education if _INSTITUTION.search(text) and text != degree), None
+    )
+    if degree is None:
+        return None, institution
+    if institution is None and _INSTITUTION.search(degree):
+        # Both on one line: "MSc Data Science, University of Manchester, 2025".
+        parts = [part.strip() for part in re.split(r",|\s+at\s+|\s+[-|]\s+", degree)]
+        at = next(i for i, part in enumerate(parts) if _INSTITUTION.search(part))
+        if at > 0:
+            return ", ".join(parts[:at]), parts[at]
+    course = _DEGREE_TAIL.sub("", degree).strip(" ,-")
+    return course or None, institution
+
+
+def short_title(job_title: str) -> str:
+    """'Software Engineer (Fixed Term)' -> 'Software Engineer'; 'Graduate Programme - Water'
+    -> 'Graduate Programme'. Long advert titles read badly inside a sentence."""
+    without_notes = re.sub(r"\s*\([^)]*\)", "", job_title)
+    return re.split(r"\s+[-\u2013|]\s+", without_notes)[0].strip() or job_title
+
+
 def _with_metric_placeholder(text: str) -> str:
     body = text.rstrip()
     period = "." if body.endswith(".") else ""
@@ -164,21 +200,27 @@ class RuleBasedEnhancer:
     ) -> Iterator[SuggestionDraft]:
         if not lines or any(_PROFILE.match(line.text) for line in lines):
             return
-        role = "this role" if job_title == "this role" else f"the {job_title} role"
+        role = "this role" if job_title == "this role" else f"the {short_title(job_title)} role"
         evidence = f", with hands-on experience of {_join(strengths[:3])}" if strengths else ""
+        course, university = education_details(lines)
         # Insert below the name line, unless the resume starts straight with a section.
         anchor = "" if lines[0].is_heading else lines[0].text
+        filled = course is not None and university is not None
         yield SuggestionDraft(
             kind=SuggestionKind.ADD,
             section="Profile",
             original=anchor,
             replacement=(
-                f"Profile: [Your course] student at [your university], applying for "
-                f"{role}{evidence}."
+                f"Profile: {course or '[Your course]'} student at "
+                f"{university or '[your university]'}, applying for {role}{evidence}."
             ),
             reason=(
                 "A short profile aimed at this role is the first thing a recruiter reads. "
-                "Fill in the brackets with your own details."
+                + (
+                    "It uses details already in your resume."
+                    if filled
+                    else "Fill in the brackets with your own details."
+                )
             ),
         )
 

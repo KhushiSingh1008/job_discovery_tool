@@ -69,6 +69,14 @@ SKILL_ALIASES: dict[str, tuple[str, ...]] = {
     "machine learning": (r"machine learning", r"\bml\b", r"deep learning", r"\bai\b"),
     "statistics": (r"statistic(s|al)", r"\br\b programming", r"regression"),
     "power bi": (r"power ?bi", r"tableau", r"dashboards?"),
+    "docker": (r"docker", r"containeri[sz](ed|ation)"),
+    "kubernetes": (r"kubernetes", r"\bk8s\b"),
+    "linux": (r"linux", r"\bunix\b", r"\bbash\b", r"shell scripting"),
+    "rest apis": (r"rest(ful)? apis?", r"\bapis?\b", r"web services"),
+    "testing": (r"unit test(s|ing)?", r"automated test(s|ing)", r"pytest", r"\bjest\b",
+                r"test[- ]driven"),
+    "nosql": (r"nosql", r"mongodb", r"firebase", r"dynamodb"),
+    "blockchain": (r"blockchain", r"solidity", r"smart contracts?", r"web3"),
 }  # fmt: skip
 
 _COMPILED: dict[str, re.Pattern[str]] = {
@@ -77,11 +85,21 @@ _COMPILED: dict[str, re.Pattern[str]] = {
 }
 
 
+# Links and addresses are not evidence of a skill ("linkedin.com/in/..." is not social media).
+_LINKS = re.compile(
+    r"\S+@\S+"  # email addresses
+    r"|https?://\S+"
+    r"|\b(?:www\.)?[\w-]+(?:\.[\w-]+)*\.(?:com|org|net|io|dev|ai|uk|in)\b\S*",  # bare domains
+    re.I,
+)
+
+
 def skills_in_order(text: str) -> list[str]:
     """Canonical skills in ``text``, ordered by first mention.
 
     Adverts tend to lead with what matters most, so order is a cheap importance signal.
     """
+    text = _LINKS.sub(" ", text)
     positions = {
         skill: match.start()
         for skill, pattern in _COMPILED.items()
