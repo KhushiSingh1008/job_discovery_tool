@@ -5,7 +5,7 @@ graduate roles and internships, collected by **our own web scraper** and checked
 things an international student needs to know: can I trust this advert, will it fit my
 visa's work-hour limit, and how well does my resume fit?
 
-- **Live app:** _add the Render URL here after deploying (see gradguide-jobs.onrender.com)
+- **Live app:** _add the Render URL here after deploying (see [gradguide-jobs.onrender.com](https://gradguide-jobs.onrender.com/))
 - **Video walkthrough:** _add the video link here_
 
 ![Jobs page: search, filters, results and the selected job side by side](docs/screenshots/jobs.png)
