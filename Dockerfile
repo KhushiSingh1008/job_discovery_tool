@@ -32,6 +32,9 @@ subprocess.check_call([sys.executable, '-m', 'pip', 'install', *deps])"
 
 COPY backend/app ./app
 COPY --from=frontend /frontend/dist ./static
+# Snapshot of scraped listings: a fresh disk (or the free plan's ephemeral one) starts
+# with jobs instead of an empty page while the first scrape runs.
+COPY backend/seed/jobs.db ./seed/jobs.db
 
 # Run as an unprivileged user that owns only the data directory.
 RUN useradd --uid 10001 --no-create-home --shell /usr/sbin/nologin gradguide \
@@ -44,4 +47,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
 
 # One worker: SQLite and the in-process scheduler expect a single process.
 # --proxy-headers: client IPs come from the platform's load balancer (for rate limits).
-CMD ["sh", "-c", "uvicorn app.api.main:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers --forwarded-allow-ips='*'"]
+CMD ["sh", "-c", "[ -f \"$GG_DATABASE_PATH\" ] || cp /app/seed/jobs.db \"$GG_DATABASE_PATH\"; exec uvicorn app.api.main:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers --forwarded-allow-ips='*'"]

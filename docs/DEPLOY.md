@@ -17,9 +17,15 @@ Browser ──► Render web service (Docker, 1 instance)
 
 ## Cost
 
-Persistent disks need a paid instance: **Starter (about $7/month) + $0.25/GB/month for the
-disk**. The free plan sleeps when idle and has no disk, so it would lose the database and
-never run the scheduled scrape.
+`render.yaml` deploys on the **free plan**. The free plan has no persistent disk and sleeps
+after about 15 minutes idle (the first request after that takes ~1 minute to wake it). To
+keep the app useful anyway, the image ships a snapshot database (`backend/seed/jobs.db`)
+that is copied to `/data` whenever the container starts with no database, so listings are
+there immediately; the scheduler refreshes them while the service is awake. Tracker entries
+are lost on restart.
+
+For a durable database, switch to **Starter (about $7/month) + $0.25/GB/month** and add
+the disk (see the comment in `render.yaml`).
 
 ## First deploy
 

@@ -1,20 +1,20 @@
 # Render Blueprint: Dashboard -> New -> Blueprint -> pick this repository.
-# One web service runs the API, serves the React app and scrapes daily; the SQLite
-# database lives on a persistent disk. (A Render Cron Job cannot reach this disk, which
-# is why the scrape is scheduled inside the web service.)
+# One web service runs the API, serves the React app and scrapes daily.
+#
+# Free plan: no persistent disk, and the service sleeps after ~15 min idle. The image
+# ships a snapshot database (backend/seed/jobs.db) that is copied to /data on each start,
+# so the app always has listings; the in-process scheduler refreshes them while awake.
+# For a database that survives restarts, switch to `plan: starter` and add:
+#   disk: { name: gradguide-data, mountPath: /data, sizeGB: 1 }
 services:
   - type: web
     name: gradguide-jobs
     runtime: docker
     dockerfilePath: ./Dockerfile
-    plan: starter # persistent disks need a paid instance
+    plan: free
     region: frankfurt
     healthCheckPath: /api/health
     autoDeploy: true
-    disk:
-      name: gradguide-data
-      mountPath: /data
-      sizeGB: 1
     envVars:
       - key: GG_DATABASE_PATH
         value: /data/jobs.db
