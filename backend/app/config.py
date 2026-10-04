@@ -4,7 +4,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Annotated
 
-from pydantic import AliasChoices, Field, field_validator
+from pydantic import AliasChoices, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
@@ -34,7 +34,8 @@ class Settings(BaseSettings):
     # NoDecode: read "a,b" from the environment as written instead of requiring JSON.
     cors_origins: Annotated[list[str], NoDecode] = ["http://localhost:5173"]
 
-    anthropic_api_key: str | None = Field(
+    # SecretStr keeps the key out of reprs, logs and tracebacks.
+    anthropic_api_key: SecretStr | None = Field(
         default=None,
         validation_alias=AliasChoices("ANTHROPIC_API_KEY", "GG_ANTHROPIC_API_KEY"),
     )

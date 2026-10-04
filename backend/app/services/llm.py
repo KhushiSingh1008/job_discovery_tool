@@ -29,7 +29,7 @@ def build_claude_client(settings: Settings) -> anthropic.Anthropic | None:
     if not settings.anthropic_api_key:
         return None
     return anthropic.Anthropic(
-        api_key=settings.anthropic_api_key,
+        api_key=settings.anthropic_api_key.get_secret_value(),
         timeout=settings.match_timeout,
         max_retries=1,
     )
