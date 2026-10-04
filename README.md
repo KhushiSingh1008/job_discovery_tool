@@ -219,7 +219,7 @@ optional.
 | `GG_SCRAPER_MIN_DELAY` / `GG_SCRAPER_MAX_DELAY` | `1.5` / `3.5` | Seconds between requests |
 | `GG_SCRAPER_REFRESH_DAYS` | `3` | Do not re-download detail pages read this recently |
 | `GG_LISTING_STALE_DAYS` | `30` | Close listings unseen for this long |
-| `GG_SCRAPE_INTERVAL_HOURS` | `0` | Scrape on a schedule inside the API (production uses `24`) |
+| `GG_SCRAPE_INTERVAL_HOURS` | `0` | Scrape on a schedule inside the API (`24` on a paid plan with a disk; off on the free deploy) |
 | `GG_RESUME_REQUESTS_PER_HOUR` | `30` | Per-visitor limit on the resume tools |
 
 ## Tests and code quality
@@ -245,9 +245,20 @@ The tests cover:
 
 ## Deployment
 
-Production is a single Docker service. FastAPI serves both the API and the built React app,
-scrapes once a day on its own schedule, and keeps SQLite on a persistent disk. A
-`render.yaml` Blueprint is included. Step-by-step instructions, costs and checks are in
+Production is a single Docker service. FastAPI serves both the API and the built React app
+and keeps SQLite at `/data`. A `render.yaml` Blueprint is included. It targets Render's free
+plan, which has no persistent disk and sleeps when idle:
+
+- **Snapshot:** the image ships a snapshot database (`backend/seed/jobs.db`) that is copied
+  in on start-up, and the free deploy serves that snapshot.
+- **No scraping in the container:** a scrape would be cut short by sleep and lost on
+  restart, so it is turned off.
+- **Data age:** the jobs page shows the snapshot's real age ("updated N days ago").
+- **Refreshing:** scrape locally and re-commit the snapshot.
+- **Paid plan:** with a disk and `GG_SCRAPE_INTERVAL_HOURS=24`, the database is durable and
+  the service scrapes itself once a day.
+
+Step-by-step instructions, costs, checks and the snapshot refresh are in
 **[docs/DEPLOY.md](docs/DEPLOY.md)**.
 
 ```bash
@@ -268,7 +279,8 @@ backend/
                     resume file reading
     api/            FastAPI app and thin routers
     rules/          editable UK wage and visa work-hour rules (JSON)
-    scheduler.py    daily scrape inside the web service
+    scheduler.py    scheduled scrape inside the web service (off on the free deploy)
+  seed/jobs.db      snapshot database copied into the container when it has none
   tests/            unit and API tests, saved HTML fixtures
 frontend/
   src/
@@ -312,3 +324,6 @@ Interactive docs are at `/docs` when the API is running.
   would mean moving to Postgres.
 - **No accounts.** Trackers are private per browser, so clearing browser data starts a new
   tracker.
+- **Free hosting.** The free Render instance sleeps after ~15 minutes idle (the next visit
+  takes ~1 minute to wake it), trackers reset on every restart, and listings are a snapshot
+  until it is refreshed ([docs/DEPLOY.md](docs/DEPLOY.md#refreshing-the-snapshot)).

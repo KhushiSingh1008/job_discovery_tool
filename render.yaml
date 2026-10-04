@@ -1,10 +1,13 @@
 # Render Blueprint: Dashboard -> New -> Blueprint -> pick this repository.
-# One web service runs the API, serves the React app and scrapes daily.
+# One web service runs the API and serves the React app.
 #
 # Free plan: no persistent disk, and the service sleeps after ~15 min idle. The image
 # ships a snapshot database (backend/seed/jobs.db) that is copied to /data on each start,
-# so the app always has listings; the in-process scheduler refreshes them while awake.
-# For a database that survives restarts, switch to `plan: starter` and add:
+# so the app always has listings. The in-container scrape is OFF here: a 20-30 min scrape
+# would be cut short by sleep and lost on the next restart. To refresh the listings,
+# scrape locally and re-commit backend/seed/jobs.db (see docs/DEPLOY.md).
+# For a database that survives restarts, switch to `plan: starter`, set
+# GG_SCRAPE_INTERVAL_HOURS back to "24", and add:
 #   disk: { name: gradguide-data, mountPath: /data, sizeGB: 1 }
 services:
   - type: web
@@ -18,8 +21,9 @@ services:
     envVars:
       - key: GG_DATABASE_PATH
         value: /data/jobs.db
+      # "0" = no in-container scrape (free plan); "24" on Starter with a disk.
       - key: GG_SCRAPE_INTERVAL_HOURS
-        value: "24"
+        value: "0"
       - key: GG_RESUME_REQUESTS_PER_HOUR
         value: "30"
       # Optional: enables AI resume suggestions. Paste it in the Render dashboard when

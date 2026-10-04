@@ -1,7 +1,9 @@
 # syntax=docker/dockerfile:1
 #
 # One image for production: the FastAPI app serves the API and the built React app, and
-# scrapes on a schedule. SQLite lives on a mounted disk at /data.
+# scrapes on a schedule (GG_SCRAPE_INTERVAL_HOURS; render.yaml turns it off on the free plan).
+# SQLite lives at /data: a mounted disk on a paid plan, ephemeral on the free plan, where
+# it is seeded from backend/seed/jobs.db at start-up.
 
 # ---- 1. Build the React app -------------------------------------------------------------
 FROM node:22-alpine AS frontend
