@@ -91,6 +91,10 @@ export function useMatch() {
   return useMutation({ mutationFn: api.match });
 }
 
+export function useExtractResume() {
+  return useMutation({ mutationFn: api.extractResume });
+}
+
 export function useEnhance() {
   return useMutation({ mutationFn: api.enhance });
 }

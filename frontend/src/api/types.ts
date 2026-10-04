@@ -161,6 +161,10 @@ export interface MatchResult {
 
 export type EnhanceRequest = MatchRequest;
 
+export interface ResumeText {
+  text: string;
+}
+
 export type SuggestionKind = "rewrite" | "add";
 
 /**

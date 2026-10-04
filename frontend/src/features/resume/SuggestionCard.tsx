@@ -10,51 +10,53 @@ interface SuggestionCardProps {
   suggestion: ResumeSuggestion;
   decision: Decision | undefined;
   onDecide: (decision: Decision | undefined) => void;
+  onClose: () => void;
+  onNext: (() => void) | null;
 }
 
-const ANCHOR_PREVIEW_CHARS = 60;
-
-function shorten(text: string) {
-  return text.length > ANCHOR_PREVIEW_CHARS ? `${text.slice(0, ANCHOR_PREVIEW_CHARS)}…` : text;
-}
-
-/** One proposed edit, shown as a before/after diff the student accepts or rejects. */
-export function SuggestionCard({ suggestion, decision, onDecide }: SuggestionCardProps) {
+/** The accept/reject card that opens under a highlighted suggestion. */
+export function SuggestionCard({
+  suggestion,
+  decision,
+  onDecide,
+  onClose,
+  onNext,
+}: SuggestionCardProps) {
   const { kind, section, original, replacement, reason } = suggestion;
   return (
-    <motion.li
-      layout
+    <motion.div
       className={`${styles.card} ${decision ? styles[decision] : ""}`}
-      aria-label={`${kind === "add" ? "New line" : "Rewrite"} in ${section}`}
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+      role="group"
+      aria-label={`Suggestion in ${section}`}
+      initial={{ opacity: 0, y: -4, height: 0 }}
+      animate={{ opacity: 1, y: 0, height: "auto" }}
+      transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
     >
       <div className={styles.cardHead}>
         <span className={styles.section}>{section}</span>
-        <span className={styles.kind}>{kind === "add" ? "New line" : "Rewrite"}</span>
+        <span className={styles.kind}>{kind === "add" ? "New text" : "Change wording"}</span>
         {decision && (
           <span className={styles.status}>
             <Icon name={decision === "accepted" ? "check" : "close"} size={14} />
             {decision === "accepted" ? "Accepted" : "Rejected"}
           </span>
         )}
+        <button type="button" className={styles.cardClose} aria-label="Close" onClick={onClose}>
+          <Icon name="close" size={14} />
+        </button>
       </div>
 
-      <div className={styles.diff}>
-        {kind === "rewrite" ? (
-          <del>
-            <span className="visually-hidden">Replace: </span>
-            {original}
-          </del>
-        ) : (
-          original && <p className={styles.anchor}>After “{shorten(original)}”</p>
-        )}
-        <ins>
-          <span className="visually-hidden">{kind === "rewrite" ? "With: " : "Add: "}</span>
-          {replacement}
-        </ins>
-      </div>
+      {kind === "rewrite" ? (
+        <p className={styles.compare}>
+          <del className={styles.change}>{original}</del>
+          <Icon name="arrowRight" size={14} className={styles.compareArrow} />
+          <ins className={styles.insert}>{replacement}</ins>
+        </p>
+      ) : (
+        <p className={styles.compare}>
+          <ins className={styles.insert}>{replacement}</ins>
+        </p>
+      )}
 
       <p className={styles.reason}>
         <Icon name="sparkle" size={16} className={styles.reasonIcon} />
@@ -76,7 +78,12 @@ export function SuggestionCard({ suggestion, decision, onDecide }: SuggestionCar
             </Button>
           </>
         )}
+        {onNext && (
+          <Button size="sm" variant="ghost" className={styles.next} onClick={onNext}>
+            Next suggestion <Icon name="arrowRight" size={14} />
+          </Button>
+        )}
       </div>
-    </motion.li>
+    </motion.div>
   );
 }

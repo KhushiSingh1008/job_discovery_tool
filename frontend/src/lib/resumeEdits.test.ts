@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { ResumeSuggestion } from "../api/types";
-import { applySuggestions, countDecisions } from "./resumeEdits";
+import { applySuggestions, countDecisions, layoutSuggestions } from "./resumeEdits";
 
 const RESUME = ["Sam Lee", "", "- Responsible for the till", "- Served customers"].join("\n");
 
@@ -87,5 +87,40 @@ describe("countDecisions", () => {
       rejected: 1,
       pending: 2,
     });
+  });
+});
+
+describe("layoutSuggestions", () => {
+  it("splits lines around rewrites and attaches additions", () => {
+    const layout = layoutSuggestions(RESUME, SUGGESTIONS);
+
+    expect(layout.top).toEqual(["s4"]);
+    expect(layout.lines[0]).toEqual({
+      segments: [{ kind: "text", text: "Sam Lee" }],
+      additions: ["s1"],
+    });
+    expect(layout.lines[2]!.segments).toEqual([
+      { kind: "text", text: "- " },
+      { kind: "edit", id: "s2" },
+    ]);
+    expect(layout.lines[3]!.additions).toEqual(["s3"]);
+    expect(layout.unplaced).toEqual([]);
+  });
+
+  it("places two rewrites on one line and refuses overlaps", () => {
+    const suggestions = [
+      edit("a", { original: "Responsible", replacement: "Owned" }),
+      edit("b", { original: "the till", replacement: "the tills" }),
+      edit("c", { original: "for the", replacement: "x" }),
+    ];
+    const layout = layoutSuggestions(RESUME, suggestions);
+
+    expect(layout.lines[2]!.segments).toEqual([
+      { kind: "text", text: "- " },
+      { kind: "edit", id: "a" },
+      { kind: "text", text: " for " },
+      { kind: "edit", id: "b" },
+    ]);
+    expect(layout.unplaced).toEqual(["c"]);
   });
 });

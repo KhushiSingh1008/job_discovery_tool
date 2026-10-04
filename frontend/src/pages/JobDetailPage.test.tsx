@@ -144,21 +144,51 @@ describe("JobDetailPage", () => {
       listing_id: "barista-1",
     });
 
-    const rewrite = within(drawer).getByRole("listitem", { name: "Rewrite in Experience" });
-    await user.click(within(rewrite).getByRole("button", { name: /Accept/ }));
-    const profile = within(drawer).getByRole("listitem", { name: "New line in Profile" });
-    await user.click(within(profile).getByRole("button", { name: /Reject/ }));
+    // Suggestions are highlighted in the resume itself: yellow words to change, blue new words.
+    const change = within(drawer).getByRole("button", { name: "Suggested change in Experience" });
+    expect(change.querySelector("del")).toHaveTextContent("Responsible for handling");
+    expect(change.querySelector("ins")).toHaveTextContent("Handled");
 
-    const preview = within(drawer).getByLabelText("Resume preview");
-    expect(preview).toHaveTextContent("Handled cash on the till");
-    expect(preview).not.toHaveTextContent("Responsible for");
-    expect(preview).not.toHaveTextContent("Profile:");
+    // The first suggestion in reading order (the profile line) opens ready to review.
+    const profileCard = within(drawer).getByRole("group", { name: "Suggestion in Profile" });
+    await user.click(within(profileCard).getByRole("button", { name: /Reject/ }));
+
+    // Deciding moves straight on to the next suggestion.
+    const changeCard = await within(drawer).findByRole("group", {
+      name: "Suggestion in Experience",
+    });
+    await user.click(within(changeCard).getByRole("button", { name: /Accept/ }));
+
+    expect(
+      within(drawer).getByRole("button", { name: "Accepted change in Experience" }),
+    ).toHaveTextContent("Handled cash on the till");
+    expect(
+      within(drawer).getByRole("button", { name: "Rejected addition in Profile" }),
+    ).toBeInTheDocument();
     expect(within(drawer).getByText("2 of 2 reviewed")).toBeInTheDocument();
 
     await user.click(within(drawer).getByRole("button", { name: "Use as my resume" }));
-    expect(JSON.parse(window.localStorage.getItem("gradguide.resume") ?? '""')).toContain(
-      "- Handled cash on the till",
-    );
+    const saved = JSON.parse(window.localStorage.getItem("gradguide.resume") ?? '""') as string;
+    expect(saved).toBe("Sam Lee\n- Handled cash on the till\n- Served customers at weekends");
+  });
+
+  it("can undo a decision from the highlight", async () => {
+    const { user } = setup();
+    await user.click(await screen.findByRole("button", { name: /Enhance my resume/ }));
+    const drawer = await screen.findByRole("dialog");
+    await user.type(within(drawer).getByLabelText("Your resume (plain text)"), RESUME);
+    await user.click(within(drawer).getByRole("button", { name: /Suggest improvements/ }));
+
+    const card = await within(drawer).findByRole("group", { name: "Suggestion in Profile" });
+    await user.click(within(card).getByRole("button", { name: /Accept/ }));
+    await user.click(within(drawer).getByRole("button", { name: "Accepted addition in Profile" }));
+    const reopened = within(drawer).getByRole("group", { name: "Suggestion in Profile" });
+    await user.click(within(reopened).getByRole("button", { name: "Undo" }));
+
+    expect(
+      within(drawer).getByRole("button", { name: "Suggested addition in Profile" }),
+    ).toBeInTheDocument();
+    expect(within(drawer).getByText("0 of 2 reviewed")).toBeInTheDocument();
   });
 
   it("closes the drawer with Escape", async () => {

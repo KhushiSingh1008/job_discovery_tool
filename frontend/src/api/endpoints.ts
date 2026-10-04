@@ -10,6 +10,7 @@ import type {
   Listing,
   ListingPage,
   ListingQuery,
+  ResumeText,
   MatchRequest,
   MatchResult,
   Reminder,
@@ -52,6 +53,14 @@ export const api = {
 
   match: (data: MatchRequest) =>
     request<MatchResult>("/api/match", { method: "POST", ...json(data) }),
+
+  /** The file goes as the raw body: the server reads it in memory and never stores it. */
+  extractResume: (file: File) =>
+    request<ResumeText>("/api/resume/extract", {
+      method: "POST",
+      body: file,
+      headers: { "Content-Type": "application/octet-stream" },
+    }),
 
   enhance: (data: EnhanceRequest) =>
     request<EnhanceResult>("/api/resume/enhance", { method: "POST", ...json(data) }),

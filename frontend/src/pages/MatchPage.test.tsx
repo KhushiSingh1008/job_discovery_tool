@@ -53,7 +53,7 @@ describe("MatchPage", () => {
     await user.click(submit);
 
     expect(await screen.findByText("food hygiene")).toBeInTheDocument();
-    const card = screen.getByRole("listitem", { name: "Rewrite in Experience" });
+    const card = screen.getByRole("group", { name: "Suggestion in Experience" });
     expect(within(card).getByText("Handled cash on the till")).toBeInTheDocument();
     // The match's generic bullet tips give way to the line-by-line edits.
     expect(screen.queryByText("Use a number.")).not.toBeInTheDocument();

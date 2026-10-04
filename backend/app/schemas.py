@@ -167,3 +167,7 @@ class EnhanceResult(BaseModel):
     suggestions: list[ResumeSuggestion]
     engine: EnhanceEngine
     notice: str | None = None
+
+
+class ResumeText(BaseModel):
+    text: str
