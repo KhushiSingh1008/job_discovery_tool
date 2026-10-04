@@ -3,6 +3,8 @@ import type {
   Application,
   ApplicationCreate,
   ApplicationUpdate,
+  EnhanceRequest,
+  EnhanceResult,
   FilterFacets,
   HoursSummary,
   Listing,
@@ -50,4 +52,7 @@ export const api = {
 
   match: (data: MatchRequest) =>
     request<MatchResult>("/api/match", { method: "POST", ...json(data) }),
+
+  enhance: (data: EnhanceRequest) =>
+    request<EnhanceResult>("/api/resume/enhance", { method: "POST", ...json(data) }),
 };

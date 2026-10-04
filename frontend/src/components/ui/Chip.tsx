@@ -19,7 +19,7 @@ export function ToggleChip({ pressed, onToggle, children, count }: ToggleChipPro
   );
 }
 
-type TagTone = "neutral" | "accent" | "good" | "warn" | "bad" | "outline";
+export type TagTone = "neutral" | "accent" | "info" | "good" | "warn" | "bad" | "outline";
 
 interface TagProps {
   tone?: TagTone;

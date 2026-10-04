@@ -17,7 +17,7 @@ const SETTLED = 0.001;
 export interface HoursRingSceneProps {
   committedFraction: number; // committed hours / cap (may exceed 1)
   potentialFraction: number; // (committed + interviewing) / cap
-  tone: "good" | "warn" | "bad" | "bronze";
+  tone: "good" | "warn" | "bad" | "teal";
   animate: boolean;
 }
 
@@ -80,7 +80,12 @@ function Track() {
   useEffect(() => () => geometry.dispose(), [geometry]);
   return (
     <mesh geometry={geometry}>
-      <meshStandardMaterial color={SCENE_COLORS.slate} roughness={0.9} transparent opacity={0.22} />
+      <meshStandardMaterial
+        color={SCENE_COLORS.indigo}
+        roughness={0.9}
+        transparent
+        opacity={0.22}
+      />
     </mesh>
   );
 }
@@ -107,7 +112,7 @@ function Ring({ committedFraction, potentialFraction, tone, animate }: HoursRing
         {potentialFraction > committedFraction && (
           <AnimatedArc
             target={potentialFraction}
-            color={SCENE_COLORS.bronze}
+            color={SCENE_COLORS.teal}
             opacity={0.35}
             tube={TUBE * 0.8}
             animate={animate}
@@ -135,7 +140,7 @@ export default function HoursRingScene(props: HoursRingSceneProps) {
     >
       <ambientLight intensity={0.55} />
       <directionalLight position={[3, 4, 5]} intensity={2.2} />
-      <directionalLight position={[-4, -2, 2]} intensity={0.5} color={SCENE_COLORS.bronze} />
+      <directionalLight position={[-4, -2, 2]} intensity={0.5} color={SCENE_COLORS.teal} />
       <Ring {...props} />
     </Canvas>
   );

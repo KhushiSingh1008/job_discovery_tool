@@ -52,11 +52,11 @@ function SkylineFallback() {
       {bars.map((height, i) => {
         const x = 30 + i * 32;
         const y = 170 - height;
-        const fill = i === 3 ? "var(--bronze)" : i % 2 ? "var(--slate)" : "var(--ink)";
+        const fill = i === 3 ? "var(--teal)" : i % 2 ? "var(--indigo)" : "var(--navy)";
         return (
           <g key={x}>
             <rect x={x} y={y} width="24" height={height} rx="3" fill={fill} />
-            <rect x={x} y={y} width="24" height="6" rx="3" fill="var(--paper)" opacity="0.5" />
+            <rect x={x} y={y} width="24" height="6" rx="3" fill="#ffffff" opacity="0.35" />
           </g>
         );
       })}
@@ -78,7 +78,7 @@ const TONE_VARS: Record<HoursRingSceneProps["tone"], string> = {
   good: "var(--color-good)",
   warn: "var(--color-warn)",
   bad: "var(--color-bad)",
-  bronze: "var(--color-accent)",
+  teal: "var(--teal)",
 };
 
 function RingFallback({ committedFraction, tone }: Omit<HoursRingSceneProps, "animate">) {

@@ -90,3 +90,7 @@ export function useDeleteApplication() {
 export function useMatch() {
   return useMutation({ mutationFn: api.match });
 }
+
+export function useEnhance() {
+  return useMutation({ mutationFn: api.enhance });
+}

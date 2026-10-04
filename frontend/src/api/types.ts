@@ -159,6 +159,30 @@ export interface MatchResult {
   notice: string | null;
 }
 
+export type EnhanceRequest = MatchRequest;
+
+export type SuggestionKind = "rewrite" | "add";
+
+/**
+ * One proposed resume edit. A rewrite replaces ``original`` (verbatim resume text) with
+ * ``replacement``; an add inserts ``replacement`` as a new line after the line containing
+ * ``original`` ("" means at the top).
+ */
+export interface ResumeSuggestion {
+  id: string;
+  kind: SuggestionKind;
+  section: string;
+  original: string;
+  replacement: string;
+  reason: string;
+}
+
+export interface EnhanceResult {
+  suggestions: ResumeSuggestion[];
+  engine: "claude" | "rules";
+  notice: string | null;
+}
+
 /** Query parameters accepted by GET /api/listings. */
 export interface ListingQuery {
   q?: string;

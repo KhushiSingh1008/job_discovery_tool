@@ -16,6 +16,7 @@ body {
   color: var(--color-text);
   font-family: var(--font-body);
   font-size: var(--text-md);
+  font-variant-numeric: tabular-nums;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -25,11 +26,11 @@ h1,
 h2,
 h3 {
   margin: 0;
+  color: var(--color-heading);
   font-family: var(--font-display);
-  font-weight: 500;
-  line-height: 1.12;
-  letter-spacing: -0.015em;
-  font-variation-settings: "opsz" 72;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
   text-wrap: balance;
 }
 
@@ -39,7 +40,7 @@ p {
 }
 
 a {
-  color: inherit;
+  color: var(--color-link);
 }
 
 button,

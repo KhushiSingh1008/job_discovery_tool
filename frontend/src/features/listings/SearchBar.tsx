@@ -1,19 +1,27 @@
-import { useEffect, useRef, type FormEvent } from "react";
+import { useEffect, useId, useRef, type FormEvent } from "react";
 
+import { Icon } from "../../components/ui/Icon";
 import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import { useSyncedState } from "../../hooks/useSyncedState";
 import styles from "./SearchBar.module.css";
 
-interface SearchBarProps {
-  value: string;
-  onSearch: (value: string) => void;
+export interface SearchValues {
+  q: string;
+  location: string;
 }
 
-/** Search box that commits to the URL 300 ms after typing stops. */
-export function SearchBar({ value, onSearch }: SearchBarProps) {
-  // Follows external changes too (back button, "clear filters").
-  const [text, setText] = useSyncedState(value);
-  const debounced = useDebouncedValue(text, 300);
+interface SearchBarProps extends SearchValues {
+  locations: string[];
+  onSearch: (values: Partial<SearchValues>) => void;
+}
+
+/**
+ * Text that follows its URL value (back button, "clear all") and commits to the URL once
+ * typing settles.
+ */
+function useDebouncedField(external: string, commit: (value: string) => void, delayMs: number) {
+  const [text, setText] = useSyncedState(external);
+  const debounced = useDebouncedValue(text, delayMs);
   const lastDebounced = useRef(debounced);
 
   // Commit only when the *typed* text settles, never because the URL changed; otherwise
@@ -21,37 +29,69 @@ export function SearchBar({ value, onSearch }: SearchBarProps) {
   useEffect(() => {
     if (debounced === lastDebounced.current) return;
     lastDebounced.current = debounced;
-    if (debounced.trim() !== value) onSearch(debounced.trim());
-  }, [debounced, value, onSearch]);
+    if (debounced.trim() !== external) commit(debounced.trim());
+  }, [debounced, external, commit]);
+
+  return [text, setText] as const;
+}
+
+/** Keyword + location search: live as you type, or immediately on Search. */
+export function SearchBar({ q, location, locations, onSearch }: SearchBarProps) {
+  const listId = useId();
+  const [keyword, setKeyword] = useDebouncedField(q, (value) => onSearch({ q: value }), 300);
+  const [place, setPlace] = useDebouncedField(
+    location,
+    (value) => onSearch({ location: value }),
+    500,
+  );
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    onSearch(text.trim());
+    onSearch({ q: keyword.trim(), location: place.trim() });
   };
 
   return (
     <form className={styles.search} role="search" onSubmit={submit}>
-      <label htmlFor="job-search" className="visually-hidden">
-        Search jobs
-      </label>
-      <svg className={styles.icon} viewBox="0 0 20 20" aria-hidden="true">
-        <circle cx="9" cy="9" r="5.5" fill="none" stroke="currentColor" strokeWidth="1.6" />
-        <path
-          d="m13.2 13.2 3.6 3.6"
-          stroke="currentColor"
-          strokeWidth="1.6"
-          strokeLinecap="round"
+      <div className={styles.field}>
+        <Icon name="search" className={styles.icon} />
+        <label htmlFor="job-search" className="visually-hidden">
+          Search jobs
+        </label>
+        <input
+          id="job-search"
+          type="search"
+          className={styles.input}
+          placeholder="Job title, employer or keyword"
+          value={keyword}
+          onChange={(event) => setKeyword(event.target.value)}
+          autoComplete="off"
         />
-      </svg>
-      <input
-        id="job-search"
-        type="search"
-        className={styles.input}
-        placeholder="Barista, data analyst, tutor, Manchester…"
-        value={text}
-        onChange={(event) => setText(event.target.value)}
-        autoComplete="off"
-      />
+      </div>
+      <span className={styles.divider} aria-hidden="true" />
+      <div className={styles.field}>
+        <Icon name="pin" className={styles.icon} />
+        <label htmlFor="job-location" className="visually-hidden">
+          Location
+        </label>
+        <input
+          id="job-location"
+          type="search"
+          className={styles.input}
+          placeholder="City, or “remote”"
+          list={listId}
+          value={place}
+          onChange={(event) => setPlace(event.target.value)}
+          autoComplete="off"
+        />
+        <datalist id={listId}>
+          {locations.map((name) => (
+            <option key={name} value={name} />
+          ))}
+        </datalist>
+      </div>
+      <button type="submit" className={styles.submit}>
+        Search
+      </button>
     </form>
   );
 }

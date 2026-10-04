@@ -3,11 +3,11 @@ import { HoursRing } from "../../components/three/Scenes";
 import { formatHours } from "../../lib/format";
 import styles from "./Tracker.module.css";
 
-const TONES: Record<HoursStatus, "good" | "warn" | "bad" | "bronze"> = {
+const TONES: Record<HoursStatus, "good" | "warn" | "bad" | "teal"> = {
   ok: "good",
   near_limit: "warn",
   over_limit: "bad",
-  no_limit: "bronze",
+  no_limit: "teal",
 };
 
 const HEADLINES: Record<HoursStatus, string> = {

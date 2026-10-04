@@ -107,7 +107,7 @@ class MatchEngine(StrEnum):
     KEYWORD = "keyword"
 
 
-class MatchRequest(BaseModel):
+class ResumeJobRequest(BaseModel):
     """Resume text plus either a stored listing or a pasted job description."""
 
     resume_text: str = Field(min_length=50, max_length=20_000)
@@ -115,10 +115,18 @@ class MatchRequest(BaseModel):
     job_description: str | None = Field(default=None, min_length=50, max_length=20_000)
 
     @model_validator(mode="after")
-    def _exactly_one_job(self) -> "MatchRequest":
+    def _exactly_one_job(self) -> "ResumeJobRequest":
         if (self.listing_id is None) == (self.job_description is None):
             raise ValueError("Provide exactly one of listing_id or job_description")
         return self
+
+
+class MatchRequest(ResumeJobRequest):
+    pass
+
+
+class EnhanceRequest(ResumeJobRequest):
+    pass
 
 
 class MatchResult(BaseModel):
@@ -129,3 +137,33 @@ class MatchResult(BaseModel):
     suggestions: list[str]
     engine: MatchEngine
     notice: str | None = None  # e.g. why the offline matcher was used
+
+
+class EnhanceEngine(StrEnum):
+    CLAUDE = "claude"
+    RULES = "rules"
+
+
+class SuggestionKind(StrEnum):
+    REWRITE = "rewrite"  # replace ``original`` (verbatim resume text) with ``replacement``
+    ADD = "add"  # insert ``replacement`` as a new line after the line containing ``original``
+
+
+class SuggestionDraft(BaseModel):
+    """One proposed resume edit, before it is checked against the resume."""
+
+    kind: SuggestionKind
+    section: str = Field(description="Resume section the edit belongs to, e.g. 'Experience'")
+    original: str = Field(description="Rewrite: text to replace. Add: anchor line ('' = top)")
+    replacement: str
+    reason: str
+
+
+class ResumeSuggestion(SuggestionDraft):
+    id: str
+
+
+class EnhanceResult(BaseModel):
+    suggestions: list[ResumeSuggestion]
+    engine: EnhanceEngine
+    notice: str | None = None

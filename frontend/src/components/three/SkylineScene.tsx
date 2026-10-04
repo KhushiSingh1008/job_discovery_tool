@@ -44,12 +44,12 @@ function buildBlocks(): Block[] {
       const roll = random();
       const color =
         roll > 0.86
-          ? SCENE_COLORS.bronze
+          ? SCENE_COLORS.teal
           : roll > 0.55
-            ? SCENE_COLORS.paper
+            ? SCENE_COLORS.mist
             : roll > 0.25
-              ? SCENE_COLORS.slate
-              : SCENE_COLORS.ink;
+              ? SCENE_COLORS.indigo
+              : SCENE_COLORS.navy;
       blocks.push({
         x: i * SPACING - offset,
         z: j * SPACING - offset,
@@ -114,7 +114,7 @@ export interface SceneProps {
 export default function SkylineScene({ animate }: SceneProps) {
   return (
     <Canvas
-      camera={{ position: [7.5, 6.2, 7.5], fov: 30 }}
+      camera={{ position: [9, 7.4, 9], fov: 30 }}
       dpr={[1, 2]}
       shadows
       frameloop={animate ? "always" : "demand"}
@@ -122,14 +122,14 @@ export default function SkylineScene({ animate }: SceneProps) {
       aria-hidden="true"
       onCreated={({ camera }) => camera.lookAt(0, 0.9, 0)}
     >
-      <hemisphereLight args={[SCENE_COLORS.paper, SCENE_COLORS.ink, 0.9]} />
+      <hemisphereLight args={[SCENE_COLORS.white, SCENE_COLORS.navy, 0.9]} />
       <directionalLight
         position={[5, 9, 3]}
         intensity={2.1}
         castShadow
         shadow-mapSize={[1024, 1024]}
       />
-      <directionalLight position={[-6, 3, -4]} intensity={0.45} color={SCENE_COLORS.bronze} />
+      <directionalLight position={[-6, 3, -4]} intensity={0.45} color={SCENE_COLORS.teal} />
       <Skyline animate={animate} />
       <ContactShadows position={[0, -0.01, 0]} opacity={0.35} scale={12} blur={2.6} far={4} />
     </Canvas>

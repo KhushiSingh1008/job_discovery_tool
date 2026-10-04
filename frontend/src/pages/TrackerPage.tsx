@@ -55,8 +55,8 @@ export function TrackerPage() {
                 </LinkButton>
               }
             >
-              Open a job and choose “Track this job”. Add the weekly hours of jobs you are offered
-              and the tracker will warn you before you go over your visa limit.
+              Save a job with the bookmark, or choose Apply now on a job. Add the weekly hours of
+              jobs you are offered and the tracker will warn you before you go over your visa limit.
             </StateMessage>
           ) : (
             <TrackerBoard applications={applications.data} />

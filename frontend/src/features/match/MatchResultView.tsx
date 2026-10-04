@@ -48,7 +48,13 @@ function SkillList({
   );
 }
 
-export function MatchResultView({ result }: { result: MatchResult }) {
+interface MatchResultViewProps {
+  result: MatchResult;
+  /** Hidden where line-by-line resume edits are shown instead. */
+  showSuggestions?: boolean;
+}
+
+export function MatchResultView({ result, showSuggestions = true }: MatchResultViewProps) {
   return (
     <motion.section
       className={styles.result}
@@ -84,7 +90,7 @@ export function MatchResultView({ result }: { result: MatchResult }) {
         />
       </div>
 
-      {result.suggestions.length > 0 && (
+      {showSuggestions && result.suggestions.length > 0 && (
         <div>
           <h3>Bullet points to try</h3>
           <ol className={styles.suggestions}>

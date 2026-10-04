@@ -4,7 +4,7 @@
   justify-content: center;
   gap: var(--space-2);
   border: 1px solid transparent;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-pill);
   font-weight: 500;
   line-height: 1;
   text-decoration: none;
@@ -12,6 +12,7 @@
   transition:
     background-color var(--duration-fast) var(--ease-out),
     border-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out),
     transform var(--duration-fast) var(--ease-out),
     box-shadow var(--duration-fast) var(--ease-out);
 }
@@ -21,12 +22,12 @@
 }
 
 .button:disabled {
-  opacity: 0.55;
+  opacity: 0.5;
 }
 
 .md {
   min-height: 2.5rem;
-  padding: 0 var(--space-4);
+  padding: 0 var(--space-5);
   font-size: var(--text-sm);
 }
 
@@ -37,24 +38,32 @@
   letter-spacing: 0.01em;
 }
 
+.lg {
+  min-height: 3rem;
+  padding: 0 var(--space-6);
+  font-size: var(--text-md);
+}
+
 .primary {
-  background: var(--color-inverse-bg);
-  color: var(--color-inverse-text);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  box-shadow: 0 6px 16px -8px rgb(3 1 100 / 0.6);
 }
 
 .primary:hover:not(:disabled) {
-  background: var(--color-accent-strong);
-  color: var(--color-on-accent);
-  box-shadow: var(--shadow-md);
+  background: var(--color-primary-hover);
+  box-shadow: 0 10px 22px -10px rgb(54 49 153 / 0.7);
 }
 
 .secondary {
   background: var(--color-surface);
   border-color: var(--color-border-strong);
+  color: var(--color-heading);
 }
 
 .secondary:hover:not(:disabled) {
-  border-color: var(--color-text);
+  border-color: var(--color-accent);
+  background: var(--color-surface-muted);
 }
 
 .ghost {
@@ -64,7 +73,7 @@
 
 .ghost:hover:not(:disabled) {
   background: var(--color-surface-sunken);
-  color: var(--color-text);
+  color: var(--color-heading);
 }
 
 .danger {
@@ -74,4 +83,26 @@
 
 .danger:hover:not(:disabled) {
   background: var(--color-bad-soft);
+}
+
+/* Square icon-only buttons (save, share, close). */
+.icon {
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  border-radius: var(--radius-md);
+  border-color: var(--color-border-strong);
+  background: var(--color-surface);
+  color: var(--color-heading);
+}
+
+.icon:hover:not(:disabled) {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+
+.icon[aria-pressed="true"] {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
 }

@@ -7,7 +7,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api.routers import applications, listings, match, meta
+from app.api.routers import applications, listings, match, meta, resume
 from app.config import get_settings
 from app.db import open_db
 from app.services.errors import ConflictError, DomainError, InvalidTransitionError, NotFoundError
@@ -49,6 +49,7 @@ def create_app() -> FastAPI:
     app.include_router(listings.router)
     app.include_router(applications.router)
     app.include_router(match.router)
+    app.include_router(resume.router)
     app.include_router(meta.router)
     return app
 

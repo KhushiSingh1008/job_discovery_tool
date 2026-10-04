@@ -1,9 +1,10 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
 import { routes } from "../app/routes";
-import { HOURS_OK, jsonError, makeListing, mockApi } from "../test/mockApi";
+import type { Application, EnhanceResult } from "../api/types";
+import { HOURS_OK, jsonError, makeApplication, makeListing, mockApi } from "../test/mockApi";
 import { renderRoutes } from "../test/render";
 
 const LISTING = {
@@ -17,11 +18,60 @@ const LISTING = {
   ],
 };
 
-function setup(trackResponse: () => unknown) {
+const RESUME =
+  "Sam Lee\n- Responsible for handling cash on the till\n- Served customers at weekends";
+
+const ENHANCED: EnhanceResult = {
+  engine: "rules",
+  notice: null,
+  suggestions: [
+    {
+      id: "s1",
+      kind: "rewrite",
+      section: "Experience",
+      original: "Responsible for handling cash on the till",
+      replacement: "Handled cash on the till",
+      reason: "Opens with an action verb.",
+    },
+    {
+      id: "s2",
+      kind: "add",
+      section: "Profile",
+      original: "Sam Lee",
+      replacement: "Profile: student applying for the Weekend Barista role.",
+      reason: "A short profile aimed at this role.",
+    },
+  ],
+};
+
+const MATCHED = {
+  score: 64,
+  summary: "Your resume shows 2 of the 3 skills this job mentions.",
+  matched_skills: ["customer service", "cash handling"],
+  missing_skills: ["food hygiene"],
+  suggestions: [],
+  engine: "keyword",
+  notice: null,
+};
+
+function setup(applications: Application[] = [], createResponse?: () => unknown) {
+  let current = applications;
   const api = mockApi({
     "GET /api/listings/barista-1": () => LISTING,
+    "GET /api/applications": () => current,
     "GET /api/applications/hours-summary": () => HOURS_OK,
-    "POST /api/applications": trackResponse,
+    "POST /api/applications": (_url, body) => {
+      if (createResponse) return createResponse();
+      const created = makeApplication(body as Partial<Application>);
+      current = [created];
+      return created;
+    },
+    "PATCH /api/applications/9": (_url, body) => {
+      current = current.map((a) => ({ ...a, ...(body as Partial<Application>) }));
+      return current[0];
+    },
+    "POST /api/resume/enhance": () => ENHANCED,
+    "POST /api/match": () => MATCHED,
   });
   renderRoutes(routes, "/jobs/barista-1");
   return { ...api, user: userEvent.setup() };
@@ -29,7 +79,7 @@ function setup(trackResponse: () => unknown) {
 
 describe("JobDetailPage", () => {
   it("explains the trust score, concerns first", async () => {
-    setup(() => ({}));
+    setup();
 
     expect(await screen.findByRole("heading", { name: "Weekend Barista" })).toBeInTheDocument();
     const reasons = screen.getAllByRole("listitem").map((item) => item.textContent);
@@ -41,29 +91,90 @@ describe("JobDetailPage", () => {
     );
   });
 
-  it("tracks the job", async () => {
-    const { user, calls } = setup(() => ({ id: 1 }));
+  it("links Apply now to the employer and offers to track the application", async () => {
+    const { user, calls } = setup();
 
-    await user.click(await screen.findByRole("button", { name: "Track this job" }));
+    const apply = await screen.findByRole("link", { name: /Apply now/ });
+    expect(apply).toHaveAttribute("href", "https://example.com/barista");
+    expect(apply).toHaveAttribute("target", "_blank");
 
-    expect(await screen.findByRole("link", { name: /Added. Open tracker/ })).toBeInTheDocument();
-    expect(calls.find((c) => c.method === "POST")?.body).toEqual({ listing_id: "barista-1" });
+    await user.click(apply);
+    await user.click(await screen.findByRole("button", { name: "Yes, mark as applied" }));
+
+    expect(await screen.findByText(/Tracked as applied/)).toBeInTheDocument();
+    expect(calls.find((c) => c.method === "POST")?.body).toEqual({
+      listing_id: "barista-1",
+      status: "applied",
+    });
   });
 
-  it("treats an already-tracked job as success, not an error", async () => {
-    const { user } = setup(() => jsonError(409, "This listing is already in your tracker"));
+  it("moves a saved job to applied instead of adding it twice", async () => {
+    const { user, calls } = setup([makeApplication({ status: "saved" })]);
 
-    await user.click(await screen.findByRole("button", { name: "Track this job" }));
+    await user.click(await screen.findByRole("link", { name: /Apply now/ }));
+    await user.click(await screen.findByRole("button", { name: "Yes, mark as applied" }));
 
-    expect(
-      await screen.findByRole("link", { name: /Already in your tracker/ }),
-    ).toBeInTheDocument();
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(calls.find((c) => c.method === "PATCH")?.body).toEqual({ status: "applied" }),
+    );
+    expect(calls.some((c) => c.method === "POST")).toBe(false);
+  });
+
+  it("shows tracker errors next to the follow-up", async () => {
+    const { user } = setup([], () => jsonError(500, "Database is busy"));
+
+    await user.click(await screen.findByRole("link", { name: /Apply now/ }));
+    await user.click(await screen.findByRole("button", { name: "Yes, mark as applied" }));
+
+    expect(await screen.findByText("Database is busy")).toBeInTheDocument();
+  });
+
+  it("enhances the resume: accept one edit, reject another, and keep the result", async () => {
+    const { user, calls } = setup();
+
+    await user.click(await screen.findByRole("button", { name: /Enhance my resume/ }));
+    const drawer = await screen.findByRole("dialog", { name: "Enhance your resume" });
+
+    await user.type(within(drawer).getByLabelText("Your resume (plain text)"), RESUME);
+    await user.click(within(drawer).getByRole("button", { name: /Suggest improvements/ }));
+
+    expect(await within(drawer).findByText("64")).toBeInTheDocument(); // fit score
+    expect(calls.find((c) => c.url.pathname === "/api/resume/enhance")?.body).toEqual({
+      resume_text: RESUME,
+      listing_id: "barista-1",
+    });
+
+    const rewrite = within(drawer).getByRole("listitem", { name: "Rewrite in Experience" });
+    await user.click(within(rewrite).getByRole("button", { name: /Accept/ }));
+    const profile = within(drawer).getByRole("listitem", { name: "New line in Profile" });
+    await user.click(within(profile).getByRole("button", { name: /Reject/ }));
+
+    const preview = within(drawer).getByLabelText("Resume preview");
+    expect(preview).toHaveTextContent("Handled cash on the till");
+    expect(preview).not.toHaveTextContent("Responsible for");
+    expect(preview).not.toHaveTextContent("Profile:");
+    expect(within(drawer).getByText("2 of 2 reviewed")).toBeInTheDocument();
+
+    await user.click(within(drawer).getByRole("button", { name: "Use as my resume" }));
+    expect(JSON.parse(window.localStorage.getItem("gradguide.resume") ?? '""')).toContain(
+      "- Handled cash on the till",
+    );
+  });
+
+  it("closes the drawer with Escape", async () => {
+    const { user } = setup();
+
+    await user.click(await screen.findByRole("button", { name: /Enhance my resume/ }));
+    await screen.findByRole("dialog");
+    await user.keyboard("{Escape}");
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
 
   it("handles a listing that has gone", async () => {
     mockApi({
       "GET /api/listings/gone": () => jsonError(404, "Listing not found"),
+      "GET /api/applications": () => [],
       "GET /api/applications/hours-summary": () => HOURS_OK,
     });
     renderRoutes(routes, "/jobs/gone");

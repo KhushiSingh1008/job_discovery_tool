@@ -1,6 +1,10 @@
 """Test doubles shared across test modules."""
 
 from pathlib import Path
+from types import SimpleNamespace
+from typing import Any, cast
+
+import anthropic
 
 from app.scraper.http import FetchError
 
@@ -38,3 +42,27 @@ class FakeClock:
     def sleep(self, seconds: float) -> None:
         self.sleeps.append(seconds)
         self.now += seconds
+
+
+def claude_response(text: str | None = None, stop_reason: str = "end_turn") -> SimpleNamespace:
+    """The parts of a Messages API response the app reads."""
+    content = [SimpleNamespace(type="text", text=text)] if text is not None else []
+    return SimpleNamespace(stop_reason=stop_reason, content=content)
+
+
+class FakeClaude:
+    """Mimics ``anthropic.Anthropic().beta.messages.create`` and records each call."""
+
+    def __init__(self, result: SimpleNamespace | Exception) -> None:
+        self.result = result
+        self.calls: list[dict[str, Any]] = []
+        self.beta = SimpleNamespace(messages=SimpleNamespace(create=self._create))
+
+    def _create(self, **kwargs: Any) -> SimpleNamespace:
+        self.calls.append(kwargs)
+        if isinstance(self.result, Exception):
+            raise self.result
+        return self.result
+
+    def as_client(self) -> anthropic.Anthropic:
+        return cast(anthropic.Anthropic, self)

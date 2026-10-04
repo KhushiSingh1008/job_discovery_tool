@@ -1,6 +1,6 @@
 import { vi } from "vitest";
 
-import type { ListingSummary } from "../api/types";
+import type { Application, ListingSummary } from "../api/types";
 
 type Handler = (url: URL, body: unknown) => unknown;
 
@@ -57,6 +57,27 @@ export function makeListing(overrides: Partial<ListingSummary> = {}): ListingSum
     source: "studentjob",
     trust_score: 82,
     eligibility_tag: "student-friendly",
+    ...overrides,
+  };
+}
+
+export function makeApplication(overrides: Partial<Application> = {}): Application {
+  return {
+    id: 9,
+    listing_id: "barista-1",
+    status: "saved",
+    weekly_hours: 0,
+    applied_at: null,
+    last_contact_at: null,
+    notes: "",
+    created_at: "2026-09-20T10:00:00Z",
+    updated_at: "2026-09-20T10:00:00Z",
+    title: "Weekend Barista",
+    employer: "Bean & Leaf",
+    location: "Manchester",
+    url: "https://example.com/barista",
+    job_type: "part-time",
+    pay_hourly: 12.8,
     ...overrides,
   };
 }

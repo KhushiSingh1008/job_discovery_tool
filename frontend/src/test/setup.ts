@@ -6,6 +6,7 @@ import { afterEach, vi } from "vitest";
 afterEach(() => {
   cleanup();
   window.localStorage.clear();
+  vi.restoreAllMocks();
 });
 
 // jsdom lacks these browser APIs used by motion and the layout.
@@ -19,6 +20,7 @@ vi.stubGlobal("IntersectionObserver", MockIntersectionObserver);
 
 Object.defineProperty(window, "matchMedia", {
   writable: true,
+  configurable: true,
   value: (query: string) => ({
     matches: false,
     media: query,

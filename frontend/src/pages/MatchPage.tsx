@@ -1,33 +1,39 @@
 import { useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router";
 
-import { useListing, useMatch } from "../api/queries";
+import { useListing } from "../api/queries";
 import type { MatchRequest } from "../api/types";
 import { Page } from "../components/layout/Page";
+import { Avatar } from "../components/ui/Avatar";
 import { Button } from "../components/ui/Button";
-import { StateMessage } from "../components/ui/States";
-import { MatchResultView } from "../features/match/MatchResultView";
-import { useLocalStorage } from "../hooks/useLocalStorage";
-import styles from "../features/match/Match.module.css";
-
-export const MIN_TEXT_LENGTH = 50;
+import { Icon } from "../components/ui/Icon";
+import { AnalysisResults } from "../features/resume/AnalysisResults";
+import { ResumeField } from "../features/resume/ResumeField";
+import { useResumeAnalysis } from "../features/resume/useResumeAnalysis";
+import { MIN_TEXT_LENGTH, useSavedResume } from "../hooks/useSavedResume";
+import resumeStyles from "../features/resume/Resume.module.css";
+import styles from "./MatchPage.module.css";
 
 function SelectedListing({ id, onClear }: { id: string; onClear: () => void }) {
   const { data, isPending, isError } = useListing(id);
   return (
     <div className={styles.selected}>
-      <p className={styles.selectedLabel}>Matching against</p>
+      <p className={styles.selectedLabel}>Tailoring for</p>
       {isPending ? (
         <p>Loading job…</p>
       ) : isError ? (
         <p>That job could not be found.</p>
       ) : (
-        <p>
-          <Link to={`/jobs/${data.id}`}>
-            <strong>{data.title}</strong>
-          </Link>{" "}
-          at {data.employer}
-        </p>
+        <div className={styles.selectedJob}>
+          <Avatar name={data.employer} />
+          <p>
+            <Link to={`/jobs/${data.id}`}>
+              <strong>{data.title}</strong>
+            </Link>
+            <br />
+            {data.employer}
+          </p>
+        </div>
       )}
       <Button size="sm" variant="ghost" onClick={onClear}>
         Paste a job description instead
@@ -39,9 +45,9 @@ function SelectedListing({ id, onClear }: { id: string; onClear: () => void }) {
 export function MatchPage() {
   const [params, setParams] = useSearchParams();
   const listingId = params.get("listing");
-  const [resume, setResume] = useLocalStorage("gradguide.resume", "");
+  const [resume, setResume] = useSavedResume();
   const [jobText, setJobText] = useState("");
-  const match = useMatch();
+  const analysis = useResumeAnalysis();
 
   const resumeReady = resume.trim().length >= MIN_TEXT_LENGTH;
   const jobReady = listingId !== null || jobText.trim().length >= MIN_TEXT_LENGTH;
@@ -52,71 +58,55 @@ export function MatchPage() {
     const body: MatchRequest = listingId
       ? { resume_text: resume, listing_id: listingId }
       : { resume_text: resume, job_description: jobText };
-    match.mutate(body);
+    analysis.run(body);
   };
 
   return (
-    <Page title="Resume match">
+    <Page title="Resume tools">
       <header className={styles.header}>
-        <h1>Check your fit before you apply</h1>
+        <p className={styles.eyebrow}>Resume tools</p>
+        <h1>Tailor your resume to a job</h1>
         <p className={styles.lead}>
-          Paste your resume and a job. You'll see which requirements you already meet, what's
-          missing, and how to word your real experience for this role.
+          See how well you fit, then review suggested edits one by one. Accept what's true for you,
+          reject the rest, and take away a resume written in the employer's language.
         </p>
       </header>
 
       <form className={styles.form} onSubmit={submit}>
-        <div className={styles.field}>
-          <label htmlFor="resume">Your resume (plain text)</label>
-          <textarea
-            id="resume"
-            rows={12}
-            value={resume}
-            onChange={(event) => setResume(event.target.value)}
-            placeholder="Paste your resume. It is kept on this device only."
-          />
-          <span className={styles.hint}>
-            {resumeReady ? "Saved on this device" : `At least ${MIN_TEXT_LENGTH} characters`}
-          </span>
-        </div>
+        <ResumeField value={resume} onChange={setResume} />
 
-        <div className={styles.field}>
-          {listingId ? (
-            <SelectedListing id={listingId} onClear={() => setParams({})} />
-          ) : (
-            <>
-              <label htmlFor="job">Job description</label>
-              <textarea
-                id="job"
-                rows={12}
-                value={jobText}
-                onChange={(event) => setJobText(event.target.value)}
-                placeholder="Paste the advert, or open a job and choose “Check my fit”."
-              />
-              <span className={styles.hint}>
-                {jobReady ? "Ready" : `At least ${MIN_TEXT_LENGTH} characters`}
-              </span>
-            </>
-          )}
-        </div>
+        {listingId ? (
+          <SelectedListing id={listingId} onClear={() => setParams({})} />
+        ) : (
+          <div className={resumeStyles.field}>
+            <label htmlFor="job">Job description</label>
+            <textarea
+              id="job"
+              rows={12}
+              value={jobText}
+              onChange={(event) => setJobText(event.target.value)}
+              placeholder="Paste the advert, or open a job and choose “Check my fit”."
+            />
+            <span className={resumeStyles.hint}>
+              {jobReady ? "Ready" : `At least ${MIN_TEXT_LENGTH} characters`}
+            </span>
+          </div>
+        )}
 
         <div className={styles.submit}>
           <Button
             type="submit"
             variant="primary"
-            disabled={!resumeReady || !jobReady || match.isPending}
+            size="lg"
+            disabled={!resumeReady || !jobReady || analysis.isPending}
           >
-            {match.isPending ? "Analysing…" : "Check my fit"}
+            <Icon name="sparkle" />
+            {analysis.isPending ? "Analysing…" : "Check my fit"}
           </Button>
         </div>
       </form>
 
-      {match.isError && (
-        <StateMessage tone="error" title="The match could not be run">
-          {match.error.message}
-        </StateMessage>
-      )}
-      {match.data && <MatchResultView result={match.data} />}
+      <AnalysisResults analysis={analysis} onSaveResume={setResume} />
     </Page>
   );
 }

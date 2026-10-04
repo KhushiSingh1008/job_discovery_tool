@@ -1,23 +1,20 @@
 """Claude-powered matcher using structured JSON output.
 
-Claude is used for *analysis* of text the student provides; it is never used to scrape or
-extract listings. Any failure (no API access, timeout, refusal, malformed output) falls
-back to the offline matcher with a visible notice, so the feature never just breaks.
+Any failure (no API access, timeout, refusal, malformed output) falls back to the offline
+matcher with a visible notice, so the feature never just breaks.
 """
 
 import logging
 from typing import Any
 
 import anthropic
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field
 
 from app.schemas import MatchEngine, MatchResult
+from app.services.llm import ClaudeUnavailableError, ask_structured
 from app.services.matching.base import Matcher
 
 logger = logging.getLogger(__name__)
-
-FALLBACK_BETA = "server-side-fallback-2026-07-01"
-MAX_TOKENS = 16_000
 
 SYSTEM_PROMPT = """\
 You help international students in the UK see how well their resume fits a job and how to \
@@ -61,10 +58,6 @@ class _ClaudeAnswer(BaseModel):
     suggestions: list[str]
 
 
-class MatchUnavailableError(Exception):
-    """Claude returned no usable answer (refusal, truncation, invalid JSON)."""
-
-
 def build_user_message(resume_text: str, job_title: str, job_text: str) -> str:
     return (
         f"<job>\nTitle: {job_title}\n\n{job_text}\n</job>\n\n"
@@ -81,47 +74,20 @@ class ClaudeMatcher:
 
     def match(self, resume_text: str, job_title: str, job_text: str) -> MatchResult:
         try:
-            answer = self._ask_claude(resume_text, job_title, job_text)
-        except anthropic.APIStatusError as exc:  # 4xx/5xx after the SDK's own retries
-            logger.warning("Claude match failed: HTTP %s (%s)", exc.status_code, exc.message)
-            return self._fall_back(resume_text, job_title, job_text)
-        except anthropic.APIConnectionError as exc:  # network error or timeout
-            logger.warning("Claude match unreachable: %s", exc)
-            return self._fall_back(resume_text, job_title, job_text)
-        except MatchUnavailableError as exc:
-            logger.warning("Claude match unusable: %s", exc)
-            return self._fall_back(resume_text, job_title, job_text)
-
+            answer = ask_structured(
+                self._client,
+                model=self._model,
+                system=SYSTEM_PROMPT,
+                user_message=build_user_message(resume_text, job_title, job_text),
+                schema=OUTPUT_SCHEMA,
+                answer_type=_ClaudeAnswer,
+            )
+        except ClaudeUnavailableError as exc:
+            logger.warning("Claude match failed, using offline matcher: %s", exc)
+            result = self._fallback.match(resume_text, job_title, job_text)
+            return result.model_copy(
+                update={
+                    "notice": "AI matching is unavailable right now; showing the offline match."
+                }
+            )
         return MatchResult(**answer.model_dump(), engine=MatchEngine.CLAUDE)
-
-    def _ask_claude(self, resume_text: str, job_title: str, job_text: str) -> _ClaudeAnswer:
-        response = self._client.beta.messages.create(
-            model=self._model,
-            max_tokens=MAX_TOKENS,
-            # On a policy decline the API retries on a suitable model within the same call.
-            betas=[FALLBACK_BETA],
-            fallbacks="default",
-            output_config={
-                "effort": "medium",
-                "format": {"type": "json_schema", "schema": OUTPUT_SCHEMA},
-            },
-            system=SYSTEM_PROMPT,
-            messages=[
-                {"role": "user", "content": build_user_message(resume_text, job_title, job_text)}
-            ],
-        )
-        if response.stop_reason != "end_turn":
-            raise MatchUnavailableError(f"stop_reason={response.stop_reason}")
-        text = next((block.text for block in response.content if block.type == "text"), None)
-        if text is None:
-            raise MatchUnavailableError("no text block in response")
-        try:
-            return _ClaudeAnswer.model_validate_json(text)
-        except ValidationError as exc:
-            raise MatchUnavailableError(f"invalid JSON answer: {exc}") from exc
-
-    def _fall_back(self, resume_text: str, job_title: str, job_text: str) -> MatchResult:
-        result = self._fallback.match(resume_text, job_title, job_text)
-        return result.model_copy(
-            update={"notice": "AI matching is unavailable right now; showing the offline match."}
-        )

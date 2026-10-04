@@ -15,7 +15,8 @@
 }
 
 .chip:hover {
-  border-color: var(--color-text);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
 }
 
 .chip[aria-pressed="true"] {
@@ -50,6 +51,11 @@
 .accent {
   background: var(--color-accent-soft);
   color: var(--color-accent-strong);
+}
+
+.info {
+  background: var(--color-teal-soft);
+  color: var(--teal);
 }
 
 .good {

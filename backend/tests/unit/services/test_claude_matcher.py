@@ -1,6 +1,5 @@
 import json
 from types import SimpleNamespace
-from typing import Any, cast
 
 import anthropic
 import httpx2 as httpx
@@ -8,14 +7,15 @@ import pytest
 
 from app.config import Settings
 from app.schemas import MatchEngine
+from app.services.llm import FALLBACK_BETA
 from app.services.matching.claude_matcher import (
-    FALLBACK_BETA,
     OUTPUT_SCHEMA,
     ClaudeMatcher,
     build_user_message,
 )
 from app.services.matching.factory import build_matcher
 from app.services.matching.keyword_matcher import KeywordMatcher
+from tests.fakes import FakeClaude, claude_response
 
 RESUME = "Retail assistant: served customers, handled cash on the till, worked in a team."
 JOB = "Weekend barista needing customer service, cash handling and food hygiene."
@@ -29,34 +29,12 @@ ANSWER = {
 _REQUEST = httpx.Request("POST", "https://api.anthropic.com/v1/messages")
 
 
-def _response(text: str | None = None, stop_reason: str = "end_turn") -> SimpleNamespace:
-    content = [SimpleNamespace(type="text", text=text)] if text is not None else []
-    return SimpleNamespace(stop_reason=stop_reason, content=content)
-
-
-class FakeClient:
-    """Mimics ``anthropic.Anthropic().beta.messages.create`` and records the call."""
-
-    def __init__(self, result: SimpleNamespace | Exception) -> None:
-        self.result = result
-        self.calls: list[dict[str, Any]] = []
-        self.beta = SimpleNamespace(messages=SimpleNamespace(create=self._create))
-
-    def _create(self, **kwargs: Any) -> SimpleNamespace:
-        self.calls.append(kwargs)
-        if isinstance(self.result, Exception):
-            raise self.result
-        return self.result
-
-
-def _matcher(client: FakeClient) -> ClaudeMatcher:
-    return ClaudeMatcher(
-        cast(anthropic.Anthropic, client), "claude-opus-5-5", fallback=KeywordMatcher()
-    )
+def _matcher(client: FakeClaude) -> ClaudeMatcher:
+    return ClaudeMatcher(client.as_client(), "claude-opus-5-5", fallback=KeywordMatcher())
 
 
 def test_valid_answer_is_returned_as_claude_result() -> None:
-    client = FakeClient(_response(json.dumps(ANSWER)))
+    client = FakeClaude(claude_response(json.dumps(ANSWER)))
 
     result = _matcher(client).match(RESUME, "Weekend Barista", JOB)
 
@@ -67,7 +45,7 @@ def test_valid_answer_is_returned_as_claude_result() -> None:
 
 
 def test_request_uses_structured_output_fallbacks_and_fenced_inputs() -> None:
-    client = FakeClient(_response(json.dumps(ANSWER)))
+    client = FakeClaude(claude_response(json.dumps(ANSWER)))
 
     _matcher(client).match(RESUME, "Weekend Barista", JOB)
 
@@ -85,17 +63,17 @@ def test_request_uses_structured_output_fallbacks_and_fenced_inputs() -> None:
 @pytest.mark.parametrize(
     "response",
     [
-        _response(stop_reason="refusal"),
-        _response(json.dumps(ANSWER), stop_reason="max_tokens"),
-        _response(None),
-        _response("not json"),
-        _response(json.dumps({**ANSWER, "score": 150})),
-        _response(json.dumps({"score": 50})),
+        claude_response(stop_reason="refusal"),
+        claude_response(json.dumps(ANSWER), stop_reason="max_tokens"),
+        claude_response(None),
+        claude_response("not json"),
+        claude_response(json.dumps({**ANSWER, "score": 150})),
+        claude_response(json.dumps({"score": 50})),
     ],
     ids=["refusal", "truncated", "no-text", "invalid-json", "score-out-of-range", "missing"],
 )
 def test_unusable_answers_fall_back_to_offline_match(response: SimpleNamespace) -> None:
-    result = _matcher(FakeClient(response)).match(RESUME, "Weekend Barista", JOB)
+    result = _matcher(FakeClaude(response)).match(RESUME, "Weekend Barista", JOB)
 
     assert result.engine is MatchEngine.KEYWORD
     assert result.notice is not None and "offline" in result.notice
@@ -116,7 +94,7 @@ def test_unusable_answers_fall_back_to_offline_match(response: SimpleNamespace) 
     ids=["timeout", "connection", "server-error", "auth"],
 )
 def test_api_errors_fall_back_to_offline_match(error: Exception) -> None:
-    result = _matcher(FakeClient(error)).match(RESUME, "Weekend Barista", JOB)
+    result = _matcher(FakeClaude(error)).match(RESUME, "Weekend Barista", JOB)
 
     assert result.engine is MatchEngine.KEYWORD
     assert result.notice is not None
