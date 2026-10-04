@@ -24,7 +24,7 @@ from app.scraper.sources.base import SourceAdapter
 from app.scraper.types import Fetcher, RawListing
 
 BOARD_URL = "https://job-boards.greenhouse.io/{slug}"
-MAX_BOARD_PAGES = 3
+MAX_BOARD_PAGES = 5
 
 
 @dataclass(frozen=True, slots=True)
@@ -85,8 +85,10 @@ class GreenhouseAdapter(SourceAdapter):
     name = "greenhouse"
     label = "Employer career boards (Greenhouse)"
     default_job_type = JobType.FULL_TIME
+    exhaustive = True  # every board page of every configured company is walked
 
     def __init__(self, companies: tuple[Company, ...] = COMPANIES) -> None:
+        super().__init__()
         self.companies = companies
 
     def discover(self, fetcher: Fetcher) -> Iterator[Page]:
@@ -100,11 +102,14 @@ class GreenhouseAdapter(SourceAdapter):
             url = base if page_number == 1 else f"{base}?page={page_number}"
             try:
                 rows = parse_board(fetcher.get(url), url)
-            except FetchError:
+            except FetchError as exc:
+                self.report.gap(f"{company.name} board: {exc}")
                 return
             new_rows = [row for row in rows if row.url not in seen]
             if not new_rows:  # past the last page (or the page parameter was ignored)
                 return
+            if page_number == MAX_BOARD_PAGES:
+                self.report.truncate(f"{company.name} board has more than {MAX_BOARD_PAGES} pages")
             for row in new_rows:
                 seen.add(row.url)
                 if row.is_uk:

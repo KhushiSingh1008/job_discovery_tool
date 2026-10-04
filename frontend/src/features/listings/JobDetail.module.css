@@ -67,6 +67,15 @@
   font-weight: 700;
 }
 
+.closedNotice {
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--color-warn);
+  border-radius: var(--radius-sm);
+  background: var(--color-warn-soft);
+  color: var(--color-text);
+  font-size: var(--text-sm);
+}
+
 /* ---- Actions ---- */
 .actionsBlock {
   display: grid;

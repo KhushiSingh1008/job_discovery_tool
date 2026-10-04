@@ -30,6 +30,31 @@ class Page:
 
 
 @dataclass(slots=True)
+class CrawlReport:
+    """What discovery could not reach.
+
+    ``gaps`` are failures (a page that would not load); ``truncated`` records deliberate
+    limits (a page cap on a source we only sample). Either way the crawl is incomplete and
+    must never be used to conclude that the listings it did not see have closed.
+    """
+
+    gaps: list[str] = field(default_factory=list)
+    truncated: list[str] = field(default_factory=list)
+
+    @property
+    def complete(self) -> bool:
+        return not self.gaps and not self.truncated
+
+    def gap(self, reason: str) -> None:
+        logger.warning("Incomplete crawl: %s", reason)
+        self.gaps.append(reason)
+
+    def truncate(self, reason: str) -> None:
+        logger.info("Crawl limit: %s", reason)
+        self.truncated.append(reason)
+
+
+@dataclass(slots=True)
 class SitemapContents:
     page_urls: list[str] = field(default_factory=list)
     sitemap_urls: list[str] = field(default_factory=list)
@@ -76,16 +101,25 @@ def iter_paginated(
     start_url: str,
     next_selectors: Sequence[str],
     max_pages: int = 10,
+    report: CrawlReport | None = None,
 ) -> Iterator[Page]:
-    """Follow "next page" links from ``start_url``, yielding each page with its HTML."""
+    """Follow "next page" links from ``start_url``, yielding each page with its HTML.
+
+    Stopping early (a fetch error, or ``max_pages`` reached with more pages left) is
+    recorded in ``report`` so callers know the crawl was not complete.
+    """
+    report = report if report is not None else CrawlReport()
     url: str | None = start_url
     seen: set[str] = set()
-    while url and url not in seen and len(seen) < max_pages:
+    while url and url not in seen:
+        if len(seen) >= max_pages:
+            report.truncate(f"stopped after {max_pages} pages of {start_url}")
+            return
         seen.add(url)
         try:
             html = fetcher.get(url)
         except FetchError as exc:
-            logger.warning("Stopping pagination at %s: %s", url, exc)
+            report.gap(f"pagination stopped at {url}: {exc}")
             return
         yield Page(url, html)
         href = first_match(BeautifulSoup(html, "lxml"), next_selectors, attr="href")

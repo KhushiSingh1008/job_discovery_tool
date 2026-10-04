@@ -27,6 +27,18 @@ class Settings(BaseSettings):
     scraper_max_delay: float = 3.5
     scraper_timeout: float = 20.0
     scraper_max_retries: int = 3
+    # Detail pages read this recently are not downloaded again (just marked as still listed).
+    scraper_refresh_days: float = 3
+    # Listings no scrape has seen for this long are closed, whatever their source.
+    listing_stale_days: int = 30
+    # In-process schedule (production): scrape every N hours; 0 turns the scheduler off.
+    scrape_interval_hours: float = 0
+    scrape_start_delay_seconds: int = 60
+
+    # Production: serve the built frontend from this folder (same origin as the API).
+    static_dir: Path | None = None
+    # Per-IP limit on the resume endpoints (AI calls and file parsing cost money and CPU).
+    resume_requests_per_hour: int = 30
 
     ghost_job_days: int = 45
     reminder_silence_days: int = 7

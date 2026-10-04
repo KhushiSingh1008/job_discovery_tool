@@ -201,6 +201,20 @@ describe("JobDetailPage", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
 
+  it("marks a closed job and offers no Apply button", async () => {
+    mockApi({
+      "GET /api/listings/barista-1": () => ({ ...LISTING, closed_at: new Date().toISOString() }),
+      "GET /api/applications": () => [],
+      "GET /api/applications/hours-summary": () => HOURS_OK,
+    });
+    renderRoutes(routes, "/jobs/barista-1");
+
+    expect(
+      await screen.findByText(/This job is no longer listed by StudentJob UK/),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Apply now/ })).not.toBeInTheDocument();
+  });
+
   it("handles a listing that has gone", async () => {
     mockApi({
       "GET /api/listings/gone": () => jsonError(404, "Listing not found"),

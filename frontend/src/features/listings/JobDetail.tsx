@@ -16,6 +16,7 @@ import {
   JOB_TYPE_LABELS,
   formatPay,
   formatPostedDate,
+  formatRelativeTime,
 } from "../../lib/format";
 import { EnhancePanel } from "../resume/EnhancePanel";
 import { JobActions } from "./JobActions";
@@ -129,7 +130,15 @@ function Detail({ listing, variant }: { listing: Listing; variant: JobDetailProp
           <TrustBadge score={listing.trust_score} />
         </div>
 
-        <JobActions listing={listing} onEnhance={() => setEnhancing(true)} />
+        {listing.closed_at ? (
+          <p className={styles.closedNotice} role="status">
+            This job is no longer listed by {SOURCE_LABELS[listing.source] ?? listing.source}{" "}
+            (closed {formatRelativeTime(listing.closed_at)}). It stays in your tracker if you saved
+            it.
+          </p>
+        ) : (
+          <JobActions listing={listing} onEnhance={() => setEnhancing(true)} />
+        )}
       </header>
 
       <section className={styles.section} aria-labelledby="about-role">

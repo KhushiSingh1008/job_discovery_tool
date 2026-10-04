@@ -4,7 +4,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
-from app.api.deps import DbConn
+from app.api.deps import DbConn, resume_rate_limit
 from app.api.job_target import resolve_job
 from app.config import get_settings
 from app.schemas import MatchRequest, MatchResult
@@ -18,7 +18,7 @@ def get_matcher() -> Matcher:
     return build_matcher(get_settings())
 
 
-@router.post("", response_model=MatchResult)
+@router.post("", response_model=MatchResult, dependencies=[Depends(resume_rate_limit)])
 def match_resume(
     data: MatchRequest, db: DbConn, matcher: Annotated[Matcher, Depends(get_matcher)]
 ) -> MatchResult:

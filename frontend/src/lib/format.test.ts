@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatHours, formatPay, formatPostedDate, trustLevel } from "./format";
+import { formatHours, formatPay, formatPostedDate, formatRelativeTime, trustLevel } from "./format";
 
 describe("formatPay", () => {
   it("shows the hourly rate when known", () => {
@@ -47,5 +47,18 @@ describe("formatHours", () => {
   it("keeps whole hours short and rounds fractions", () => {
     expect(formatHours(20)).toBe("20h");
     expect(formatHours(7.25)).toBe("7.3h");
+  });
+});
+
+describe("formatRelativeTime", () => {
+  const now = new Date("2026-10-04T12:00:00Z");
+  it.each([
+    ["2026-10-04T11:59:40Z", "just now"],
+    ["2026-10-04T11:59:00Z", "1 minute ago"],
+    ["2026-10-04T11:15:00Z", "45 minutes ago"],
+    ["2026-10-04T09:00:00Z", "3 hours ago"],
+    ["2026-10-02T12:00:00Z", "2 days ago"],
+  ])("%s -> %s", (iso, expected) => {
+    expect(formatRelativeTime(iso, now)).toBe(expected);
   });
 });

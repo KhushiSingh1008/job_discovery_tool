@@ -5,7 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from starlette.concurrency import run_in_threadpool
 
-from app.api.deps import DbConn
+from app.api.deps import DbConn, resume_rate_limit
 from app.api.job_target import resolve_job
 from app.config import get_settings
 from app.schemas import EnhanceRequest, EnhanceResult, ResumeText
@@ -42,6 +42,7 @@ async def _read_body(request: Request) -> bytes:
 @router.post(
     "/extract",
     response_model=ResumeText,
+    dependencies=[Depends(resume_rate_limit)],
     openapi_extra={
         "requestBody": {
             "required": True,
@@ -65,7 +66,7 @@ async def extract_resume(request: Request) -> ResumeText:
     return ResumeText(text=text)
 
 
-@router.post("/enhance", response_model=EnhanceResult)
+@router.post("/enhance", response_model=EnhanceResult, dependencies=[Depends(resume_rate_limit)])
 def enhance_resume(
     data: EnhanceRequest, db: DbConn, enhancer: Annotated[Enhancer, Depends(get_enhancer)]
 ) -> EnhanceResult:

@@ -9,6 +9,7 @@ import { SkylineHero } from "../components/three/Scenes";
 import { Button } from "../components/ui/Button";
 import { ToggleChip } from "../components/ui/Chip";
 import { Skeleton, StateMessage } from "../components/ui/States";
+import { DataFreshness } from "../features/listings/DataFreshness";
 import { FilterBar } from "../features/listings/FilterBar";
 import { JobDetail } from "../features/listings/JobDetail";
 import { JobRow } from "../features/listings/JobRow";
@@ -130,6 +131,7 @@ export function JobsPage() {
               </ToggleChip>
             ))}
           </div>
+          <DataFreshness />
         </div>
       </section>
 

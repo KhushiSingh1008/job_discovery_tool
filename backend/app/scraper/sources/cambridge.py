@@ -17,6 +17,7 @@ from app.scraper.sources.base import SourceAdapter
 from app.scraper.types import Fetcher, RawListing
 
 SEARCH_URL = "https://www.cam.ac.uk/jobs/search"
+MAX_PAGES = 20
 LOCATION = "Cambridge"
 
 _ROWS = ("table.views-table tbody tr", "table tbody tr")
@@ -47,9 +48,12 @@ class CambridgeAdapter(SourceAdapter):
     label = "University of Cambridge jobs"
     default_job_type = JobType.FULL_TIME
     default_employer = "University of Cambridge"
+    exhaustive = True  # the search lists every open vacancy across its pages
 
     def discover(self, fetcher: Fetcher) -> Iterator[Page]:
-        yield from iter_paginated(fetcher, SEARCH_URL, _NEXT_PAGE, max_pages=10)
+        yield from iter_paginated(
+            fetcher, SEARCH_URL, _NEXT_PAGE, max_pages=MAX_PAGES, report=self.report
+        )
 
     def parse(self, page: Page, html: str) -> list[RawListing]:
         listings: list[RawListing] = []

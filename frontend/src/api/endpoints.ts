@@ -11,6 +11,7 @@ import type {
   ListingPage,
   ListingQuery,
   ResumeText,
+  SourceHealth,
   MatchRequest,
   MatchResult,
   Reminder,
@@ -27,6 +28,8 @@ export const api = {
   listing: (id: string) => request<Listing>(`/api/listings/${encodeURIComponent(id)}`),
 
   facets: () => request<FilterFacets>("/api/meta/filters"),
+
+  sources: () => request<SourceHealth[]>("/api/meta/sources"),
 
   visaRules: () => request<VisaRules>("/api/visa-rules"),
 

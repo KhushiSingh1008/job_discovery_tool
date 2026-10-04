@@ -19,12 +19,23 @@ _RULES: tuple[tuple[EligibilityTag, re.Pattern[str]], ...] = (
         ),
     ),
     (
+        # Student visa holders may not be self-employed, whatever else the advert says.
+        EligibilityTag.SELF_EMPLOYED,
+        re.compile(
+            r"\bas a freelancer\b|freelance (basis|role|position|contract|work)|"
+            r"self[- ]employ(ed|ment)|independent contractor|contractor basis",
+            re.I,
+        ),
+    ),
+    (
         # Explicit "no sponsorship" beats any generic mention of sponsorship.
         EligibilityTag.RIGHT_TO_WORK_REQUIRED,
         re.compile(
             r"(cannot|can't|unable to|not able to|do not|don't|will not|won't|does not) "
-            r"(offer |provide |currently )?(visa )?sponsor|no (visa )?sponsorship|"
-            r"without (the need for )?(visa )?sponsorship|sponsorship is not available",
+            r"(offer |provide |currently )?(visa )?sponsor|"
+            r"no (company |visa )?sponsorship|"
+            r"without (the need for )?(visa )?sponsorship|"
+            r"sponsorship (is )?not (available|offered|provided|possible)",
             re.I,
         ),
     ),
@@ -42,13 +53,20 @@ _RULES: tuple[tuple[EligibilityTag, re.Pattern[str]], ...] = (
         re.compile(
             r"students? (welcome|friendly)|ideal for students|suitable for students|"
             r"around (your )?(studies|lectures|university|classes)|term[- ]time|"
-            r"international students|flexible (hours|shifts)",
+            r"international students|flexible (hours|shifts)|\bstudent jobs?\b|"
+            r"(current|university|undergraduate) students?\b|"
+            r"(starting point|opportunity|perfect) for students|students and graduates",
             re.I,
         ),
     ),
     (
         EligibilityTag.RIGHT_TO_WORK_REQUIRED,
-        re.compile(r"right to work in the uk|eligible to work in the uk", re.I),
+        re.compile(
+            r"right to work in the (uk|u\.k\.|united kingdom)|"
+            r"(eligible|eligibility|authori[sz]ed|permitted) to work in the (uk|u\.k\.|"
+            r"united kingdom)|right to work (documents|information|checks?)",
+            re.I,
+        ),
     ),
 )
 

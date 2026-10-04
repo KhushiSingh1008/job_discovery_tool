@@ -73,3 +73,32 @@ def test_iter_paginated_respects_max_pages_and_stops_on_fetch_error() -> None:
         "https://ex.com/p1"
     ]
     assert len(list(iter_paginated(fetcher, "https://ex.com/p1", ["a.next"], max_pages=0))) == 0
+
+
+def test_page_cap_is_recorded_as_truncation_not_failure() -> None:
+    from app.scraper.discovery import CrawlReport, iter_paginated
+    from tests.fakes import FakeFetcher
+
+    pages = {
+        "https://x.test/1": '<a rel="next" href="/2">next</a>',
+        "https://x.test/2": '<a rel="next" href="/3">next</a>',
+    }
+    report = CrawlReport()
+
+    list(iter_paginated(FakeFetcher(pages), "https://x.test/1", ["a[rel=next]"], 2, report))
+
+    assert report.gaps == []
+    assert report.truncated == ["stopped after 2 pages of https://x.test/1"]
+    assert not report.complete
+
+
+def test_failed_page_is_recorded_as_a_gap() -> None:
+    from app.scraper.discovery import CrawlReport, iter_paginated
+    from tests.fakes import FakeFetcher
+
+    pages = {"https://x.test/1": '<a rel="next" href="/2">next</a>'}
+    report = CrawlReport()
+
+    list(iter_paginated(FakeFetcher(pages), "https://x.test/1", ["a[rel=next]"], 5, report))
+
+    assert len(report.gaps) == 1 and "https://x.test/2" in report.gaps[0]

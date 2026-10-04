@@ -13,6 +13,7 @@ export const ELIGIBILITY_LABELS: Record<EligibilityTag, string> = {
   "sponsorship-available": "Visa sponsorship",
   "right-to-work-required": "Needs right to work",
   "uk-citizens-only": "UK citizens only",
+  "self-employed": "Self-employed",
   unknown: "Visa fit unclear",
 };
 
@@ -22,6 +23,8 @@ export const ELIGIBILITY_HINTS: Record<EligibilityTag, string> = {
   "right-to-work-required":
     "You need existing right to work. A Student visa covers part-time work within your limit.",
   "uk-citizens-only": "Restricted to UK nationals or requires security clearance.",
+  "self-employed":
+    "Freelance or self-employed work. Not allowed on a Student visa, even within your hours.",
   unknown: "The advert does not mention visas. Ask the employer before you apply.",
 };
 
@@ -76,4 +79,17 @@ export const TRUST_LABELS: Record<TrustLevel, string> = {
 
 export function formatHours(hours: number): string {
   return `${Number.isInteger(hours) ? hours : hours.toFixed(1)}h`;
+}
+
+const MINUTE_MS = 60 * 1000;
+
+/** "just now", "12 minutes ago", "3 hours ago", "2 days ago". */
+export function formatRelativeTime(isoDateTime: string, now: Date = new Date()): string {
+  const minutes = Math.round((now.getTime() - new Date(isoDateTime).getTime()) / MINUTE_MS);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes} minute${minutes === 1 ? "" : "s"} ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+  const days = Math.round(hours / 24);
+  return `${days} day${days === 1 ? "" : "s"} ago`;
 }

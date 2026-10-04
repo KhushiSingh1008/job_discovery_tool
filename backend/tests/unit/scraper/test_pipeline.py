@@ -6,6 +6,7 @@ import pytest
 
 from app.models import JobType
 from app.repositories.listings import ListingRepository
+from app.schemas import ScrapeRunStatus
 from app.scraper.discovery import Page
 from app.scraper.pipeline import normalize, run_source
 from app.scraper.sources.base import SourceAdapter
@@ -36,6 +37,7 @@ class FakeAdapter(SourceAdapter):
     default_employer = "Default Employer"
 
     def __init__(self, pages: list[Page], content: dict[str, list[RawListing]]) -> None:
+        super().__init__()
         self.pages = pages
         self.content = content
 
@@ -74,7 +76,7 @@ def test_run_source_stores_listings_and_isolates_failures(db: sqlite3.Connection
             Page("https://ex.com/p1", html="p1"),  # pre-fetched by discovery
             Page("https://ex.com/p2"),  # fetched by the pipeline
             Page("https://ex.com/broken", html="boom"),  # parser raises
-            Page("https://ex.com/404"),  # fetch fails
+            Page("https://ex.com/404"),  # gone: not a failure, and nothing stored to close
         ],
         content={
             "p1": [_raw("Barista"), _raw("Kitchen Porter"), _raw("", url="not a url")],
@@ -88,8 +90,9 @@ def test_run_source_stores_listings_and_isolates_failures(db: sqlite3.Connection
     assert fetcher.requested == ["https://ex.com/p2", "https://ex.com/404"]
     assert (stats.pages, stats.inserted, stats.updated) == (4, 3, 0)
     assert stats.skipped == 1
-    assert stats.failed_pages == 2
-    assert len(stats.errors) == 2
+    assert stats.failed_pages == 1
+    assert stats.errors == ["https://ex.com/broken: layout changed"]
+    assert stats.status is ScrapeRunStatus.PARTIAL
     assert ListingRepository(db).count() == 3
 
 

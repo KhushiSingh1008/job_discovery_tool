@@ -1,5 +1,7 @@
 /** Minimal typed HTTP client for the backend API. */
 
+import { getClientId } from "../lib/clientId";
+
 export class ApiError extends Error {
   readonly status: number;
 
@@ -44,7 +46,11 @@ async function errorMessage(response: Response): Promise<string> {
 export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(path, {
     ...init,
-    headers: { "Content-Type": "application/json", ...init.headers },
+    headers: {
+      "Content-Type": "application/json",
+      "X-Client-Id": getClientId(), // scopes the tracker to this browser
+      ...init.headers,
+    },
   });
   if (!response.ok) {
     throw new ApiError(response.status, await errorMessage(response));

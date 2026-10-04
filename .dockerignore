@@ -1,0 +1,16 @@
+# Keep the build context small and free of local data and secrets.
+.git
+.claude
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/node_modules
+**/.env
+**/.env.*
+backend/.venv
+backend/data
+backend/tests
+frontend/dist
+*.log

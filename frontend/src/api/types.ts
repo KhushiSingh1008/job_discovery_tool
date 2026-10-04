@@ -8,6 +8,7 @@ export const ELIGIBILITY_TAGS = [
   "sponsorship-available",
   "right-to-work-required",
   "uk-citizens-only",
+  "self-employed",
   "unknown",
 ] as const;
 export type EligibilityTag = (typeof ELIGIBILITY_TAGS)[number];
@@ -50,6 +51,33 @@ export interface Listing extends ListingSummary {
   first_seen: string;
   last_seen: string;
   trust_flags: TrustFlag[];
+  /** Set once the job has gone from the site it was scraped from. */
+  closed_at?: string | null;
+}
+
+export type ScrapeRunStatus = "ok" | "partial" | "empty" | "failed";
+
+export interface ScrapeRun {
+  source: string;
+  started_at: string;
+  finished_at: string;
+  status: ScrapeRunStatus;
+  pages: number;
+  inserted: number;
+  updated: number;
+  unchanged: number;
+  skipped: number;
+  failed_pages: number;
+  closed: number;
+  errors: string[];
+  quality: Record<string, number>;
+}
+
+export interface SourceHealth {
+  name: string;
+  label: string;
+  open_listings: number;
+  last_run: ScrapeRun | null;
 }
 
 export interface ListingPage {

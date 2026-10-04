@@ -8,6 +8,7 @@ export const queryKeys = {
   listings: (query: ListingQuery) => ["listings", query] as const,
   listing: (id: string) => ["listing", id] as const,
   facets: ["facets"] as const,
+  sources: ["sources"] as const,
   visaRules: ["visa-rules"] as const,
   applications: ["applications"] as const,
   hoursSummary: (settings: VisaSettings) => ["applications", "hours", settings] as const,
@@ -30,6 +31,10 @@ export function useListing(id: string) {
 
 export function useFacets() {
   return useQuery({ queryKey: queryKeys.facets, queryFn: api.facets, staleTime: STATIC_DATA_MS });
+}
+
+export function useSources() {
+  return useQuery({ queryKey: queryKeys.sources, queryFn: api.sources, staleTime: STATIC_DATA_MS });
 }
 
 export function useVisaRules() {

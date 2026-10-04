@@ -17,6 +17,8 @@ class EligibilityTag(StrEnum):
     SPONSORSHIP_AVAILABLE = "sponsorship-available"
     RIGHT_TO_WORK_REQUIRED = "right-to-work-required"
     UK_CITIZENS_ONLY = "uk-citizens-only"
+    # Freelance / self-employed work is not allowed on a UK Student visa at all.
+    SELF_EMPLOYED = "self-employed"
     UNKNOWN = "unknown"
 
 
@@ -70,6 +72,7 @@ class Listing(BaseModel):
     trust_score: int | None
     trust_flags: list[TrustFlag]
     eligibility_tag: EligibilityTag
+    closed_at: datetime | None = None  # set once the job has gone from the source site
 
 
 class Application(BaseModel):

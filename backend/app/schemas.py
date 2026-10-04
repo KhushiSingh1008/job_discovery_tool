@@ -171,3 +171,36 @@ class EnhanceResult(BaseModel):
 
 class ResumeText(BaseModel):
     text: str
+
+
+class ScrapeRunStatus(StrEnum):
+    OK = "ok"
+    PARTIAL = "partial"  # some pages failed or discovery had gaps
+    EMPTY = "empty"  # pages fetched but nothing parsed: the site layout probably changed
+    FAILED = "failed"  # the source could not be scraped at all
+
+
+class ScrapeRun(BaseModel):
+    """One scrape of one source, as recorded for monitoring."""
+
+    source: str
+    started_at: datetime
+    finished_at: datetime
+    status: ScrapeRunStatus
+    pages: int = 0
+    inserted: int = 0
+    updated: int = 0
+    unchanged: int = 0
+    skipped: int = 0
+    failed_pages: int = 0
+    closed: int = 0
+    errors: list[str] = Field(default_factory=list)
+    #: Share (0-1) of this run's listings that had each field, e.g. {"pay_hourly": 0.42}.
+    quality: dict[str, float] = Field(default_factory=dict)
+
+
+class SourceHealth(BaseModel):
+    name: str
+    label: str
+    open_listings: int
+    last_run: ScrapeRun | None

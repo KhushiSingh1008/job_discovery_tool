@@ -39,6 +39,15 @@ describe("request", () => {
     );
   });
 
+  it("identifies this browser so the tracker stays private", async () => {
+    const { fetchMock } = mockApi({ "GET /api/applications": () => [] });
+
+    await request("/api/applications");
+
+    const headers = fetchMock.mock.calls[0]![1]!.headers as Record<string, string>;
+    expect(headers["X-Client-Id"]).toBe(window.localStorage.getItem("gradguide.client-id"));
+  });
+
   it("returns undefined for 204 No Content", async () => {
     mockApi({ "DELETE /api/applications/1": () => undefined });
     await expect(request("/api/applications/1", { method: "DELETE" })).resolves.toBeUndefined();

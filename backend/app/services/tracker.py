@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Any
 
 from app.models import Application, ApplicationStatus
-from app.repositories.applications import ApplicationRepository
+from app.repositories.applications import DEFAULT_OWNER, ApplicationRepository
 from app.repositories.listings import ListingRepository
 from app.schemas import ApplicationCreate, ApplicationUpdate
 from app.services.errors import ConflictError, InvalidTransitionError, NotFoundError
@@ -30,8 +30,8 @@ def can_transition(current: ApplicationStatus, new: ApplicationStatus) -> bool:
 
 
 class TrackerService:
-    def __init__(self, conn: sqlite3.Connection) -> None:
-        self._applications = ApplicationRepository(conn)
+    def __init__(self, conn: sqlite3.Connection, owner: str = DEFAULT_OWNER) -> None:
+        self._applications = ApplicationRepository(conn, owner)
         self._listings = ListingRepository(conn)
 
     def list(self) -> list[Application]:

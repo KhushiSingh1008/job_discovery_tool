@@ -7,5 +7,5 @@ def test_health_reports_ok_and_creates_db(client: TestClient, db_path: Path) -> 
     response = client.get("/api/health")
 
     assert response.status_code == 200
-    assert response.json() == {"status": "ok", "listings": 0}
+    assert response.json() == {"status": "ok", "listings": 0, "last_scraped_at": None}
     assert db_path.exists()

@@ -3,7 +3,7 @@
 import hashlib
 import json
 import sqlite3
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from enum import StrEnum
@@ -39,6 +39,7 @@ class ListingSearch:
     eligibility: list[EligibilityTag] = field(default_factory=list)
     posted_since: date | None = None
     source: str | None = None
+    include_closed: bool = False
     sort: SortOrder = SortOrder.NEWEST
     page: int = 1
     page_size: int = 20
@@ -63,7 +64,7 @@ def _like_pattern(term: str) -> str:
 
 def _where_clause(search: ListingSearch) -> tuple[str, list[object]]:
     """Build a parameterised WHERE clause; user input never enters the SQL text."""
-    conditions: list[str] = []
+    conditions: list[str] = [] if search.include_closed else ["closed_at IS NULL"]
     params: list[object] = []
 
     # Every word must appear somewhere (title, employer, location or description).
@@ -101,10 +102,10 @@ def _where_clause(search: ListingSearch) -> tuple[str, list[object]]:
 _UPSERT_SQL = """
 INSERT INTO listings (
     id, title, employer, location, pay_raw, pay_hourly, job_type, posted_date,
-    description, url, source, first_seen, last_seen
+    description, url, source, first_seen, last_seen, last_fetched
 ) VALUES (
     :id, :title, :employer, :location, :pay_raw, :pay_hourly, :job_type,
-    COALESCE(:page_posted_date, :today), :description, :url, :source, :now, :now
+    COALESCE(:page_posted_date, :today), :description, :url, :source, :now, :now, :now
 )
 ON CONFLICT(id) DO UPDATE SET
     pay_raw     = excluded.pay_raw,
@@ -114,7 +115,9 @@ ON CONFLICT(id) DO UPDATE SET
     description = excluded.description,
     url         = excluded.url,
     source      = excluded.source,
-    last_seen   = excluded.last_seen
+    last_seen   = excluded.last_seen,
+    last_fetched = excluded.last_fetched,
+    closed_at   = NULL
 """
 
 
@@ -160,7 +163,89 @@ class ListingRepository:
         return row_to_listing(row) if row else None
 
     def count(self) -> int:
-        return int(self._conn.execute("SELECT COUNT(*) FROM listings").fetchone()[0])
+        """Open listings (closed ones stay stored for the tracker but are not counted)."""
+        sql = "SELECT COUNT(*) FROM listings WHERE closed_at IS NULL"
+        return int(self._conn.execute(sql).fetchone()[0])
+
+    # ---- Lifecycle: incremental re-fetching and closing listings that have gone ----
+
+    def mark_seen_if_fresh(self, url: str, now: datetime, fetched_since: datetime) -> bool:
+        """Record that ``url`` is still listed, without re-reading its detail page.
+
+        Only applies when the page was read on or after ``fetched_since`` and the listing
+        is open; otherwise returns ``False`` and the caller fetches it again.
+        """
+        cursor = self._conn.execute(
+            """UPDATE listings SET last_seen = ?
+               WHERE url = ? AND closed_at IS NULL AND last_fetched >= ?""",
+            (now.isoformat(), url, fetched_since.isoformat()),
+        )
+        return cursor.rowcount > 0
+
+    def set_pay_hourly(self, listing_id: str, pay_hourly: float | None) -> None:
+        self._conn.execute(
+            "UPDATE listings SET pay_hourly = ? WHERE id = ?", (pay_hourly, listing_id)
+        )
+
+    def field_completeness(self, source: str) -> dict[str, float]:
+        """Share (0-1) of a source's open listings that have each optional field."""
+        row = self._conn.execute(
+            """SELECT COUNT(*) AS total,
+                      SUM(pay_raw IS NOT NULL AND pay_raw != '') AS pay_raw,
+                      SUM(pay_hourly IS NOT NULL) AS pay_hourly,
+                      SUM(location != '') AS location,
+                      SUM(description != '') AS description
+               FROM listings WHERE source = ? AND closed_at IS NULL""",
+            (source,),
+        ).fetchone()
+        total = row["total"]
+        if not total:
+            return {}
+        fields = ("pay_raw", "pay_hourly", "location", "description")
+        return {name: round((row[name] or 0) / total, 2) for name in fields}
+
+    def open_counts_by_source(self) -> dict[str, int]:
+        rows = self._conn.execute(
+            "SELECT source, COUNT(*) AS n FROM listings WHERE closed_at IS NULL GROUP BY source"
+        )
+        return {row["source"]: row["n"] for row in rows}
+
+    def open_urls(self, source: str) -> set[str]:
+        rows = self._conn.execute(
+            "SELECT url FROM listings WHERE source = ? AND closed_at IS NULL", (source,)
+        )
+        return {row["url"] for row in rows}
+
+    def close_urls(self, urls: Iterable[str], now: datetime) -> int:
+        """Close open listings at these URLs (the page is gone or the site says so)."""
+        closed = 0
+        batch = list(urls)
+        for start in range(0, len(batch), 500):  # stay under SQLite's variable limit
+            chunk = batch[start : start + 500]
+            cursor = self._conn.execute(
+                f"UPDATE listings SET closed_at = ? WHERE closed_at IS NULL "
+                f"AND url IN ({', '.join('?' * len(chunk))})",
+                [now.isoformat(), *chunk],
+            )
+            closed += cursor.rowcount
+        return closed
+
+    def close_unseen(self, source: str, seen_before: datetime, now: datetime) -> int:
+        """After a complete crawl of ``source``, close what that crawl did not see."""
+        cursor = self._conn.execute(
+            """UPDATE listings SET closed_at = ?
+               WHERE source = ? AND closed_at IS NULL AND last_seen < ?""",
+            (now.isoformat(), source, seen_before.isoformat()),
+        )
+        return cursor.rowcount
+
+    def close_stale(self, seen_before: datetime, now: datetime) -> int:
+        """Close anything no crawl has seen since ``seen_before``, whatever its source."""
+        cursor = self._conn.execute(
+            "UPDATE listings SET closed_at = ? WHERE closed_at IS NULL AND last_seen < ?",
+            (now.isoformat(), seen_before.isoformat()),
+        )
+        return cursor.rowcount
 
     def search(self, search: ListingSearch) -> tuple[list[ListingSummary], int]:
         """One page of matching listings plus the total number of matches."""
@@ -181,13 +266,16 @@ class ListingRepository:
         def counts(column: str, limit: int | None = None) -> list[FacetCount]:
             sql = (
                 f"SELECT {column} AS value, COUNT(*) AS count FROM listings "
-                f"WHERE {column} != '' GROUP BY {column} ORDER BY count DESC, value"
+                f"WHERE {column} != '' AND closed_at IS NULL "
+                f"GROUP BY {column} ORDER BY count DESC, value"
             )
             if limit is not None:
                 sql += f" LIMIT {int(limit)}"
             return [FacetCount(value=r["value"], count=r["count"]) for r in self._conn.execute(sql)]
 
-        max_pay = self._conn.execute("SELECT MAX(pay_hourly) FROM listings").fetchone()[0]
+        max_pay = self._conn.execute(
+            "SELECT MAX(pay_hourly) FROM listings WHERE closed_at IS NULL"
+        ).fetchone()[0]
         return FilterFacets(
             job_types=counts("job_type"),
             sources=counts("source"),

@@ -18,7 +18,7 @@ from urllib.parse import urljoin
 from bs4 import BeautifulSoup, Tag
 
 from app.models import JobType
-from app.scraper.discovery import Page, iter_paginated
+from app.scraper.discovery import Page, iter_paginated, iter_sitemap_urls
 from app.scraper.extract.jsonld import extract_from_jsonld
 from app.scraper.extract.selectors import first_match
 from app.scraper.normalize.text import clean_text, html_to_text
@@ -27,15 +27,27 @@ from app.scraper.types import Fetcher, RawListing
 
 BASE_URL = "https://www.studentjob.co.uk"
 START_PATHS = (
+    # Cities with large student populations
     "/jobs/london",
     "/jobs/manchester",
     "/jobs/birmingham",
     "/jobs/leeds",
     "/jobs/edinburgh",
-    "/job-type/retail-jobs",
+    # Everyday jobs the assignment asks for: cafes, bars, retail, delivery, tutoring
+    "/hospitality-jobs",
     "/job-type/bar-staff-jobs",
+    "/job-type/bar-staff-jobs/catering-assistant-jobs",
+    "/job-type/retail-jobs",
+    "/job-type/retail-jobs/shop-assistant-jobs",
+    "/job-type/retail-jobs/cashier-jobs",
+    "/job-type/logistics-jobs/package-delivery-jobs",
+    "/job-type/logistics-jobs/warehouse-assistant-jobs",
+    "/job-type/teaching-jobs",
     "/job-type/customer-service-jobs",
+    "/job-type/promotion-jobs/promotional-staff-jobs",
 )
+# The site lists jobs that have closed; used to retire listings we still show as open.
+INACTIVE_SITEMAP = BASE_URL + "/sitemap/inactive_job_openings.xml"
 MAX_PAGES_PER_START = 2
 INTERNAL_PREFIX = "/vacancies/"
 
@@ -118,12 +130,21 @@ class StudentJobAdapter(SourceAdapter):
         cards: dict[str, Card] = {}
         for path in START_PATHS:
             for index in iter_paginated(
-                fetcher, BASE_URL + path, _NEXT_PAGE, max_pages=MAX_PAGES_PER_START
+                fetcher,
+                BASE_URL + path,
+                _NEXT_PAGE,
+                max_pages=MAX_PAGES_PER_START,
+                report=self.report,  # sampled source: page caps are expected
             ):
                 for card in parse_cards(index.html or "", index.url):
                     cards.setdefault(card.url, card)
         for card in sorted(cards.values(), key=lambda card: card.promoted):
             yield Page(card.url, context=card.as_context())
+
+    def closed_urls(self, fetcher: Fetcher, open_urls: set[str]) -> set[str]:
+        if not open_urls:
+            return set()  # nothing to retire: skip the large download
+        return {url for url in iter_sitemap_urls(fetcher, INACTIVE_SITEMAP) if url in open_urls}
 
     def parse(self, page: Page, html: str) -> list[RawListing]:
         soup = BeautifulSoup(html, "lxml")

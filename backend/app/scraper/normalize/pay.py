@@ -15,6 +15,9 @@ WEEKS_PER_YEAR = 52
 # Results outside this band are almost certainly parse errors (e.g. a year or a phone number).
 _MIN_PLAUSIBLE_HOURLY = 3.0
 _MAX_PLAUSIBLE_HOURLY = 300.0
+# Annual pay that works out below this per full-time hour is a pro-rata salary (e.g.
+# "£7,221" for a term-time, part-time post), which cannot be turned into an hourly rate.
+_MIN_FULL_TIME_ANNUAL_HOURLY = 7.0
 
 _NUMBER = r"\d[\d,]*(?:\.\d+)?"
 _DASHES = "-" + chr(0x2013) + chr(0x2014)  # hyphen, en dash, em dash
@@ -38,6 +41,9 @@ _PERIOD_PATTERNS: dict[PayPeriod, re.Pattern[str]] = {
     PayPeriod.MONTH: re.compile(r"month|\bpcm\b|/mo\b", re.I),
     PayPeriod.YEAR: re.compile(r"annum|annual|year|\bpa\b|p\.a\.|/yr\b|\byr\b", re.I),
 }
+
+#: Weekly or monthly amounts at or above these are annual salaries mislabelled by the page.
+_ANNUAL_ABOVE: dict[PayPeriod, float] = {PayPeriod.WEEK: 3_000, PayPeriod.MONTH: 6_000}
 
 _HOURS_IN_PERIOD: dict[PayPeriod, float] = {
     PayPeriod.HOUR: 1.0,
@@ -75,8 +81,39 @@ def detect_period(raw: str, amount_end: int) -> PayPeriod | None:
     return _earliest_period(raw[amount_end : amount_end + 40]) or _earliest_period(raw)
 
 
-def to_hourly(raw: str | None) -> float | None:
-    """Parse a pay string into GBP per hour (lower bound), or ``None`` if vague/unparseable."""
+_WEEKLY_HOURS = re.compile(
+    rf"(?P<low>\d+(?:\.\d+)?)(?:\s*(?:[{_DASHES}]|to)\s*(?P<high>\d+(?:\.\d+)?))?\s*"
+    r"(?:hours|hrs)\s*(?:per|a|each|/)\s*week",
+    re.I,
+)
+_MAX_WEEKLY_HOURS = 60.0
+
+
+def parse_weekly_hours(text: str | None) -> tuple[float, float] | None:
+    """'4 - 20 hours per week' -> (4, 20); '16 hours a week' -> (16, 16)."""
+    match = _WEEKLY_HOURS.search(text or "")
+    if not match:
+        return None
+    low = float(match["low"])
+    high = float(match["high"] or low)
+    if not 0 < low <= high <= _MAX_WEEKLY_HOURS:
+        return None
+    return low, high
+
+
+def to_hourly(
+    raw: str | None,
+    *,
+    weekly_hours: tuple[float, float] | None = None,
+    full_time: bool = True,
+) -> float | None:
+    """Parse a pay string into GBP per hour (lower bound), or ``None`` if vague/unparseable.
+
+    Weekly and monthly pay are divided by the job's own hours when the advert gives them.
+    Without them a 37.5-hour week is assumed only for full-time roles: "£200 a week" for
+    a part-time job is not £5.33 an hour, and guessing so would wrongly flag it as below
+    the minimum wage.
+    """
     if not raw:
         return None
 
@@ -91,8 +128,27 @@ def to_hourly(raw: str | None) -> float | None:
     period = detect_period(raw, match.end()) or _infer_period_from_magnitude(low)
     if period is None:
         return None
+    # "£16,087 per month" for an apprenticeship, or "£27,700, plus a monthly commission":
+    # amounts this large are annual salaries, whatever unit the text puts next to them.
+    if period in _ANNUAL_ABOVE and low >= _ANNUAL_ABOVE[period]:
+        period = PayPeriod.YEAR
 
-    hourly = low / _HOURS_IN_PERIOD[period]
+    if period in (PayPeriod.WEEK, PayPeriod.MONTH):
+        high = _to_number(match["high"], match["hk"] or match["lk"]) if match["high"] else low
+        to_weekly = 1.0 if period is PayPeriod.WEEK else 12 / WEEKS_PER_YEAR
+        if weekly_hours is not None:
+            # Pair the ends of both ranges: the lower rate of the two is the safe figure.
+            hours_low, hours_high = weekly_hours
+            hourly = min(low * to_weekly / hours_low, high * to_weekly / hours_high)
+        elif full_time:
+            hourly = low * to_weekly / HOURS_PER_WEEK
+        else:
+            return None
+    else:
+        hourly = low / _HOURS_IN_PERIOD[period]
+
+    if period is PayPeriod.YEAR and hourly < _MIN_FULL_TIME_ANNUAL_HOURLY:
+        return None  # a pro-rata salary for part-time or term-time hours: not comparable
     if not _MIN_PLAUSIBLE_HOURLY <= hourly <= _MAX_PLAUSIBLE_HOURLY:
         return None
     return round(hourly, 2)

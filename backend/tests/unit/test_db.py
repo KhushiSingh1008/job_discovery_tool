@@ -57,3 +57,48 @@ def test_deleting_listing_cascades_to_application(db: sqlite3.Connection) -> Non
     )
     db.execute("DELETE FROM listings WHERE id = 'abc'")
     assert db.execute("SELECT COUNT(*) FROM applications").fetchone()[0] == 0
+
+
+def test_version_1_database_is_migrated_in_place() -> None:
+    from app.db import SCHEMA
+
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.executescript(SCHEMA)
+    conn.execute("PRAGMA user_version = 1")
+    _insert_listing(conn)
+
+    init_db(conn)
+
+    row = conn.execute("SELECT closed_at, last_fetched FROM listings WHERE id = 'abc'").fetchone()
+    assert row["closed_at"] is None
+    assert row["last_fetched"] == NOW  # backfilled from last_seen
+    tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    assert "scrape_runs" in tables
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
+
+
+def test_version_2_trackers_move_to_the_default_owner() -> None:
+    from app.db import MIGRATIONS, SCHEMA
+
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.executescript(SCHEMA)
+    conn.executescript(MIGRATIONS[0])
+    conn.execute("PRAGMA user_version = 2")
+    _insert_listing(conn)
+    conn.execute(
+        "INSERT INTO applications (listing_id, weekly_hours, created_at, updated_at) "
+        "VALUES ('abc', 12, ?, ?)",
+        (NOW, NOW),
+    )
+
+    init_db(conn)
+
+    row = conn.execute("SELECT owner, weekly_hours FROM applications").fetchone()
+    assert (row["owner"], row["weekly_hours"]) == ("default", 12)
+    conn.execute(  # a second browser may now track the same listing
+        "INSERT INTO applications (owner, listing_id, created_at, updated_at) "
+        "VALUES ('someone-else', 'abc', ?, ?)",
+        (NOW, NOW),
+    )

@@ -12,6 +12,7 @@ export const ELIGIBILITY_TONES: Record<EligibilityTag, TagTone> = {
   "sponsorship-available": "info",
   "right-to-work-required": "neutral",
   "uk-citizens-only": "bad",
+  "self-employed": "bad",
   unknown: "outline",
 };
 

@@ -19,6 +19,33 @@ const detailFor = (id: string) => ({
   trust_flags: [],
 });
 
+const run = (status: string, minutesAgo: number) => ({
+  source: "x",
+  started_at: new Date(Date.now() - (minutesAgo + 5) * 60_000).toISOString(),
+  finished_at: new Date(Date.now() - minutesAgo * 60_000).toISOString(),
+  status,
+  pages: 3,
+  inserted: 1,
+  updated: 0,
+  unchanged: 0,
+  skipped: 0,
+  failed_pages: 0,
+  closed: 0,
+  errors: [],
+  quality: {},
+});
+
+const SOURCES = [
+  { name: "studentjob", label: "StudentJob UK", open_listings: 40, last_run: run("ok", 120) },
+  {
+    name: "cambridge",
+    label: "University of Cambridge jobs",
+    open_listings: 20,
+    last_run: run("empty", 30),
+  },
+  { name: "greenhouse", label: "Employer career boards", open_listings: 0, last_run: null },
+];
+
 function setup(path = "/") {
   const api = mockApi({
     "GET /api/listings": (url) => {
@@ -29,6 +56,7 @@ function setup(path = "/") {
     "GET /api/listings/barista-1": () => detailFor("barista-1"),
     "GET /api/listings/intern-1": () => detailFor("intern-1"),
     "GET /api/meta/filters": () => EMPTY_FACETS,
+    "GET /api/meta/sources": () => SOURCES,
     "GET /api/applications": () => [],
     "GET /api/applications/hours-summary": () => HOURS_OK,
   });
@@ -47,6 +75,16 @@ describe("JobsPage", () => {
     expect(screen.getByRole("link", { name: "Summer Software Intern" })).toBeInTheDocument();
     expect(screen.getByText("2", { selector: "strong" })).toBeInTheDocument();
     expect(await screen.findByText("8h of 20h")).toBeInTheDocument();
+  });
+
+  it("says how many jobs are live, how fresh they are, and which source is failing", async () => {
+    setup();
+
+    const freshness = await screen.findByText(/open jobs from 2 sources/);
+    expect(freshness).toHaveTextContent("60 open jobs from 2 sources · updated 30 minutes ago");
+    expect(
+      screen.getByText("University of Cambridge jobs could not be refreshed"),
+    ).toBeInTheDocument();
   });
 
   it("opens jobs on their own page on phones", async () => {
