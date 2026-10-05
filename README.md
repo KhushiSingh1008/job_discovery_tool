@@ -6,7 +6,11 @@ things an international student needs to know: can I trust this advert, will it 
 visa's work-hour limit, and how well does my resume fit?
 
 - **Live app:** _add the Render URL here after deploying (see [gradguide-jobs.onrender.com](https://gradguide-jobs.onrender.com/))
-- **Video walkthrough:** _add the video link here_
+- **Video walkthrough:** (5 min, captioned): 0:00 Problem · 0:19 Finding jobs · 1:10 Trust & visa fit · 2:00 Tracker & 20-hour guard · 2:55 Resume match · 3:40 Implementation · 5:04 Links
+
+https://github.com/user-attachments/assets/fca18b5c-b868-4ee7-97b9-0488ca340b67
+
+
 
 ![Jobs page: search, filters, results and the selected job side by side](docs/screenshots/jobs.png)
 
